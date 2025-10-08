@@ -8,6 +8,11 @@
 Universal web app server
 ########################
 
+.. note::
+
+   NGINX Unit no longer receives new features or
+   enhancements from the project maintainers.
+
 NGINX Unit is a lightweight and versatile application runtime
 that provides the essential components for your web application
 as a single open-source server:
