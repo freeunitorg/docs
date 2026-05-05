@@ -68,6 +68,7 @@
 <link rel="stylesheet" href="{{ pathto('_static/' + styles[-1], 1) + '?' + md5('theme/static/' + styles[-1]) }}" />
 <link rel="icon" href="{{ pathto('_static/icon.png', 1) + '?' + md5('theme/static/icon.png') }}" />
 <link rel="alternate" type="application/rss+xml" title="Subscribe to FreeUnit News" href="{{ nxt_baseurl + nxt_rss_file }}" />
+<script src="{{ pathto('_static/lunr.min.js', 1) + '?' + md5('theme/static/lunr.min.js') }}"></script>
 <script async src="{{ pathto('_static/script.js', 1) + '?' + md5('theme/static/script.js') }}"></script>
 
 {%- if next %}
@@ -96,6 +97,11 @@
          <a style="text-decoration:none;" href="{{ pathto('news') }}{{release_year}}/unit-{{version}}-released/">v. {{version}}</a>
          </div>
     </h1>
+    <div id="nxt_search_wrap">
+        <input id="nxt_search_input" type="search" placeholder="Search docs… (Cmd+K)" autocomplete="off" aria-label="Search documentation" />
+        <div id="nxt_search_results" aria-live="polite"></div>
+        <div id="nxt_search_suggestions" aria-label="Popular searches"></div>
+    </div>
     {{ toctree(maxdepth = 4) }}
 </div>
 <div id="content">

@@ -188,6 +188,7 @@ function nxt_dom_ready() {
     nxt_scroll_init()
     nxt_tab_init()
     nxt_hash_change()
+    nxt_search_init()
 
     if (IntersectionObserver) {
         nxt_nav_init()
@@ -233,3 +234,209 @@ if (document.readyState === 'loading') {
 } else {
     nxt_dom_ready()
 }
+
+
+/* Lunr.js full-text search */
+
+let _nxt_search_index = null
+let _nxt_search_docs = null
+let _nxt_search_promise = null
+
+
+function nxt_search_index_url() {
+    const depth = window.location.pathname
+        .replace(/\/$/, '')
+        .split('/')
+        .length - 1
+    const prefix = depth > 0 ? '../'.repeat(depth) : './'
+    return prefix + 'search_index.json'
+}
+
+
+function nxt_search_page_url(pagename) {
+    // Convert a Sphinx pagename to a site-relative URL the same way
+    // DirectoryHTMLBuilder does:
+    //   "index"              → "/"
+    //   "configuration/index"→ "/configuration/"
+    //   "installation"       → "/installation/"
+    if (pagename === 'index' || pagename === 'contents') return '/'
+    const clean = pagename.replace(/\/index$/, '')
+    return '/' + clean + '/'
+}
+
+
+function nxt_search_load_index() {
+    if (_nxt_search_promise) return _nxt_search_promise
+    _nxt_search_promise = fetch(nxt_search_index_url())
+        .then(r => r.json())
+        .then(pages => {
+            _nxt_search_docs = {}
+            pages.forEach(p => { _nxt_search_docs[p.id] = p })
+
+            // Title gets 15x boost
+            _nxt_search_index = lunr(function() {
+                this.ref('id')
+                this.field('title', { boost: 15 })
+                this.field('body', { boost: 1 })
+                pages.forEach(function(p) { this.add(p) }, this)
+            })
+        })
+    return _nxt_search_promise
+}
+
+
+function nxt_search_highlight(text, query) {
+    const words = query.trim().split(/\s+/).filter(Boolean)
+    let snippet = text.slice(0, 160)
+    words.forEach(w => {
+        const re = new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi')
+        snippet = snippet.replace(re, '<mark>$1</mark>')
+    })
+    return snippet + (text.length > 160 ? '…' : '')
+}
+
+
+function nxt_search_render_results(results, query, container) {
+    container.innerHTML = ''
+    if (!results.length) {
+        container.innerHTML = '<div class="nxt_search_none">No results found.</div>'
+        container.classList.add('nxt_search_open')
+        return
+    }
+    results.slice(0, 12).forEach(r => {
+        const doc = _nxt_search_docs[r.ref]
+        const url = nxt_search_page_url(r.ref)
+        const item = document.createElement('div')
+        item.className = 'nxt_search_item'
+
+        const a = document.createElement('a')
+        a.href = url
+
+        const title = document.createElement('div')
+        title.className = 'nxt_search_title'
+        title.textContent = doc.title
+
+        const snippet = document.createElement('div')
+        snippet.className = 'nxt_search_snippet'
+        snippet.innerHTML = nxt_search_highlight(doc.body, query)
+
+        a.appendChild(title)
+        a.appendChild(snippet)
+        item.appendChild(a)
+        container.appendChild(item)
+    })
+    container.classList.add('nxt_search_open')
+}
+
+
+function nxt_search_get_suggestions() {
+    const suggestions = new Set()
+    Object.values(_nxt_search_docs).forEach(doc => {
+        suggestions.add(doc.title)
+    })
+    return Array.from(suggestions).sort().slice(0, 5)
+}
+
+
+function nxt_search_render_suggestions(container) {
+    container.innerHTML = ''
+    const suggestions = nxt_search_get_suggestions()
+    if (!suggestions.length) return
+
+    const ul = document.createElement('ul')
+    ul.className = 'nxt_search_suggestion_list'
+    suggestions.forEach(suggestion => {
+        const li = document.createElement('li')
+        li.className = 'nxt_search_suggestion_item'
+
+        const a = document.createElement('a')
+        a.href = 'javascript:void(0)'
+        a.textContent = suggestion
+
+        a.addEventListener('click', e => {
+            e.preventDefault()
+            document.getElementById('nxt_search_input').value = suggestion
+            document.getElementById('nxt_search_input').dispatchEvent(new Event('input'))
+        })
+
+        li.appendChild(a)
+        ul.appendChild(li)
+    })
+    container.appendChild(ul)
+}
+
+
+function nxt_search_init() {
+    const input = document.getElementById('nxt_search_input')
+    const container = document.getElementById('nxt_search_results')
+    const suggestedContainer = document.getElementById('nxt_search_suggestions')
+    if (!input || !container) return
+
+    let timer = null
+
+    document.addEventListener('keydown', e => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault()
+            input.focus()
+            input.select()
+        }
+    })
+
+    input.addEventListener('focus', () => {
+        nxt_search_load_index().then(() => {
+            if (!input.value.trim()) {
+                nxt_search_render_suggestions(suggestedContainer)
+                suggestedContainer.classList.add('nxt_search_open')
+            }
+        })
+    })
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer)
+        const q = input.value.trim()
+
+        if (!q) {
+            container.classList.remove('nxt_search_open')
+            container.innerHTML = ''
+            nxt_search_load_index().then(() => {
+                nxt_search_render_suggestions(suggestedContainer)
+                suggestedContainer.classList.add('nxt_search_open')
+            })
+            return
+        }
+
+        suggestedContainer.classList.remove('nxt_search_open')
+
+        timer = setTimeout(() => {
+            nxt_search_load_index().then(() => {
+                let results = _nxt_search_index.search(q + '~1')  // fuzzy
+                if (!results.length) results = _nxt_search_index.search(q)  // exact fallback
+                nxt_search_render_results(results, q, container)
+            })
+        }, 200)
+    })
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            const first = container.querySelector('.nxt_search_item a')
+            if (first) { window.location.href = first.href }
+        }
+        if (e.key === 'Escape') {
+            container.classList.remove('nxt_search_open')
+            suggestedContainer.classList.remove('nxt_search_open')
+            input.value = ''
+        }
+    })
+
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !container.contains(e.target) && !suggestedContainer.contains(e.target)) {
+            container.classList.remove('nxt_search_open')
+            suggestedContainer.classList.remove('nxt_search_open')
+        }
+    })
+
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(nxt_search_load_index)
+    }
+}
+
