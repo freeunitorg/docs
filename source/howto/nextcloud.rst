@@ -43,124 +43,307 @@ platform using Unit:
    <https://docs.nextcloud.com/server/latest/admin_manual/installation/nginx.html>`_:
 
    .. code-block:: json
-
       {
-          "listeners": {
-              "*:80": {
-                  "pass": "routes"
+          "settings": {
+              "http": {
+                  "server_version": false,
+                  "max_body_size": 1073741824,
+                  "body_read_timeout": 300,
+                  "header_read_timeout": 30,
+                  "send_timeout": 60,
+                  "idle_timeout": 180
               }
           },
 
-          "routes": [
-              {
-                  "match": {
-                      ":nxt_hint:`uri <Denies access to files and directories best kept private>`": [
-                          "/build/*",
-                          "/tests/*",
-                          "/config/*",
-                          "/lib/*",
-                          "/3rdparty/*",
-                          "/templates/*",
-                          "/data/*",
-                          "/.*",
-                          "/autotest*",
-                          "/occ*",
-                          "/issue*",
-                          "/indie*",
-                          "/db_*",
-                          "/console*"
-                      ]
+          "listeners": {
+              "*:80": {
+                  "pass": "routes/nextcloud"
+              }
+          },
+
+          "routes": {
+              "nextcloud": [
+                  {
+                      "match": {
+                          "uri": "/",
+                          "headers": {
+                              "User-Agent": "DavClnt*"
+                          }
+                      },
+                      "action": {
+                          "return": 302,
+                          "location": "/remote.php/webdav$request_uri"
+                      }
                   },
 
-                  "action": {
-                      "return": 404
-                  }
-              },
-              {
-                  "match": {
-                      ":nxt_hint:`uri <Serves direct URIs with dedicated scripts>`": [
-                          "/core/ajax/update.php*",
-                          "/cron.php*",
-                          "/index.php*",
-                          "/ocm-provider*.php*",
-                          "/ocs-provider*.php*",
-                          "/ocs/v1.php*",
-                          "/ocs/v2.php*",
-                          "/public.php*",
-                          "/remote.php*",
-                          "/status.php*",
-                          "/updater*.php*"
-                      ]
+                  {
+                      "match": {
+                          "uri": "/"
+                      },
+                      "action": {
+                          "rewrite": "/index.php$request_uri",
+                          "pass": "applications/nextcloud/direct",
+                          "response_headers": {
+                              "Referrer-Policy":                   "no-referrer",
+                              "X-Content-Type-Options":            "nosniff",
+                              "X-Frame-Options":                   "SAMEORIGIN",
+                              "X-Permitted-Cross-Domain-Policies": "none",
+                              "X-Robots-Tag":                      "noindex, nofollow"
+                          }
+                      }
                   },
 
-                  "action": {
-                      "pass": "applications/nextcloud/direct"
-                  }
-              },
-              {
-                  "match": {
-                      "uri": "/ocm-provider*"
+                  {
+                      "match": {
+                          "uri": "/robots.txt"
+                      },
+                      "action": {
+                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri"
+                      }
                   },
 
-                  "action": {
-                      "pass": "applications/nextcloud/ocm"
-                  }
-              },
-              {
-                  "match": {
-                      "uri": "/ocs-provider*"
+                  {
+                      "match": {
+                          "uri": [
+                              "/.well-known/carddav",
+                              "/.well-known/caldav"
+                          ]
+                      },
+                      "action": {
+                          "return": 301,
+                          "location": "/remote.php/dav/"
+                      }
                   },
 
-                  "action": {
-                      "pass": "applications/nextcloud/ocs"
-                  }
-              },
-              {
-                  "match": {
-                      "uri": "/updater*"
+                  {
+                      "match": {
+                          "uri": [
+                              "/.well-known/acme-challenge/*",
+                              "/.well-known/pki-validation/*"
+                          ]
+                      },
+                      "action": {
+                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "fallback": {
+                              "return": 404
+                          }
+                      }
                   },
 
-                  "action": {
-                      "pass": "applications/nextcloud/updater"
-                  }
-              },
-              {
-                  "action": {
-                      ":nxt_hint:`share <Serves matching static files>`": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
-                      "fallback": {
-                          "pass": "applications/nextcloud/index"
+                  {
+                      "match": {
+                          "uri": "/.well-known/*"
+                      },
+                      "action": {
+                          "return": 301,
+                          "location": "/index.php$request_uri"
+                      }
+                  },
+
+                  {
+                      "match": {
+                          ":nxt_hint:`uri <Denies access to directories best kept private>`": [
+                              "/build",  "/build/*",
+                              "/tests",  "/tests/*",
+                              "/config", "/config/*",
+                              "/lib",    "/lib/*",
+                              "/3rdparty", "/3rdparty/*",
+                              "/templates", "/templates/*",
+                              "/data",   "/data/*"
+                          ]
+                      },
+                      "action": {
+                          "return": 404
+                      }
+                  },
+
+                  {
+                      "match": {
+                          ":nxt_hint:`uri <Denies access to files best kept private>`": [
+                              "/.*",
+                              "/autotest*",
+                              "/occ*",
+                              "/issue*",
+                              "/indie*",
+                              "/db_*",
+                              "/console*"
+                          ]
+                      },
+                      "action": {
+                          "return": 404
+                      }
+                  },
+
+                  {
+                      "match": {
+                          "uri": ["/ocs-provider", "/ocs-provider/"]
+                      },
+                      "action": {
+                          "rewrite": "/ocs-provider/index.php",
+                          "pass": "applications/nextcloud/direct"
+                      }
+                  },
+
+                  {
+                      "match": {
+                          "uri": ["/updater", "/updater/"]
+                      },
+                      "action": {
+                          "rewrite": "/updater/index.php",
+                          "pass": "applications/nextcloud/direct"
+                      }
+                  },
+
+                  {
+                      "match": {
+                          "uri": [
+                              "/index.php",       "/index.php/*",
+                              "/remote.php",      "/remote.php/*",
+                              "/public.php",      "/public.php/*",
+                              "/cron.php",
+                              "/status.php",
+                              "/ocs/v1.php",      "/ocs/v1.php/*",
+                              "/ocs/v2.php",      "/ocs/v2.php/*",
+                              "/ocs-provider/*.php",
+                              "/core/ajax/update.php",
+                              "/updater/*.php",   "/updater/*.php/*",
+                              "*/richdocumentscode/proxy.php",
+                              "*/richdocumentscode_arm64/proxy.php"
+                          ]
+                      },
+                      "action": {
+                          "pass": "applications/nextcloud/direct",
+                          "response_headers": {
+                              "Referrer-Policy":                   "no-referrer",
+                              "X-Content-Type-Options":            "nosniff",
+                              "X-Frame-Options":                   "SAMEORIGIN",
+                              "X-Permitted-Cross-Domain-Policies": "none",
+                              "X-Robots-Tag":                      "noindex, nofollow"
+                          }
+                      }
+                  },
+
+                  {
+                      "match": {
+                          "uri": [
+                              "*.php",
+                              "*.php/*"
+                          ]
+                      },
+                      "action": {
+                          "pass": "applications/nextcloud/index",
+                          "response_headers": {
+                              "Referrer-Policy":                   "no-referrer",
+                              "X-Content-Type-Options":            "nosniff",
+                              "X-Frame-Options":                   "SAMEORIGIN",
+                              "X-Permitted-Cross-Domain-Policies": "none",
+                              "X-Robots-Tag":                      "noindex, nofollow"
+                          }
+                      }
+                  },
+
+                  {
+                      "match": {
+                          "uri": "/remote/*"
+                      },
+                      "action": {
+                          "rewrite": "/remote.php$request_uri",
+                          "pass": "applications/nextcloud/direct"
+                      }
+                  },
+
+                  {
+                      "match": {
+                          "uri": [
+                              "*.css", "*.js", "*.mjs", "*.svg",
+                              "*.gif", "*.ico", "*.jpg", "*.jpeg",
+                              "*.png", "*.webp", "*.wasm", "*.tflite",
+                              "*.map", "*.ogg", "*.flac",
+                              "*.mp4", "*.webm"
+                          ]
+                      },
+                      "action": {
+                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "fallback": {
+                              "pass": "applications/nextcloud/index",
+                              "response_headers": {
+                                  "Referrer-Policy":                   "no-referrer",
+                                  "X-Content-Type-Options":            "nosniff",
+                                  "X-Frame-Options":                   "SAMEORIGIN",
+                                  "X-Permitted-Cross-Domain-Policies": "none",
+                                  "X-Robots-Tag":                      "noindex, nofollow"
+                              }
+                          },
+                          "response_headers": {
+                              "Cache-Control":                     "public, max-age=15778463",
+                              "Referrer-Policy":                   "no-referrer",
+                              "X-Content-Type-Options":            "nosniff",
+                              "X-Frame-Options":                   "SAMEORIGIN",
+                              "X-Permitted-Cross-Domain-Policies": "none",
+                              "X-Robots-Tag":                      "noindex, nofollow"
+                          }
+                      }
+                  },
+
+                  {
+                      "match": {
+                          "uri": [
+                              "*.otf", "*.woff", "*.woff2"
+                          ]
+                      },
+                      "action": {
+                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "fallback": {
+                              "pass": "applications/nextcloud/index"
+                          },
+                          "response_headers": {
+                              "Cache-Control": "public, max-age=604800"
+                          }
+                      }
+                  },
+
+                  {
+                      "action": {
+                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "fallback": {
+                              "pass": "applications/nextcloud/index",
+                              "response_headers": {
+                                  "Referrer-Policy":                   "no-referrer",
+                                  "X-Content-Type-Options":            "nosniff",
+                                  "X-Frame-Options":                   "SAMEORIGIN",
+                                  "X-Permitted-Cross-Domain-Policies": "none",
+                                  "X-Robots-Tag":                      "noindex, nofollow"
+                              }
+                          }
                       }
                   }
-              }
-          ],
+              ]
+          },
 
           "applications": {
               "nextcloud": {
                   "type": "php",
+                  "limits": {
+                      "timeout": 600,
+                      "requests": 2000
+                  },
+                  "processes": {
+                      "max": 64,
+                      "spare": 16,
+                      "idle_timeout": 60
+                  },
                   "targets": {
                       "direct": {
                           "root": ":nxt_ph:`/path/to/app/ <Path to the application directory; use a real path in your configuration>`"
                       },
-
                       "index": {
                           "root": ":nxt_ph:`/path/to/app/ <Path to the application directory; use a real path in your configuration>`",
                           "script": ":nxt_hint:`index.php <All requests are handled by a single script>`"
-                      },
-
-                      "ocm": {
-                          "root": ":nxt_ph:`/path/to/app/ <Path to the application directory; use a real path in your configuration>`ocm-provider/",
-                          "script": ":nxt_hint:`index.php <All requests are handled by a single script>`"
-                      },
-
-                      "ocs": {
-                          "root": ":nxt_ph:`/path/to/app/ <Path to the application directory; use a real path in your configuration>`ocs-provider/",
-                          "script": ":nxt_hint:`index.php <All requests are handled by a single script>`"
-                      },
-
-                      "updater": {
-                          "root": ":nxt_ph:`/path/to/app/ <Path to the application directory; use a real path in your configuration>`nextcloud/updater/",
-                          "script": ":nxt_hint:`index.php <All requests are handled by a single script>`"
                       }
+                  },
+                  "environment": {
+                      "modHeadersAvailable":     "true",
+                      "front_controller_active": "true"
                   }
               }
           }
@@ -181,11 +364,11 @@ platform using Unit:
 
 #. Adjust Unit's **max_body_size** :ref:`option <configuration-stngs>` to
    avoid potential issues with large file uploads, for example, runnig the
-   following command as root:
+   following command as root to set 10G limit:
 
    .. code-block:: console
 
-      # curl -X PUT -d '{"http":{"max_body_size": 2147483648}}' --unix-socket \
+      # curl -X PUT -d '{"http":{"max_body_size": 10737418240}}' --unix-socket \
              :nxt_ph:`/path/to/control.unit.sock <Path to Unit's control socket in your installation>` :nxt_hint:`http://localhost/config/settings <Path to the 'config/settings' section in Unit's control API>`
 
    After a successful update, browse to http://localhost and `set up
