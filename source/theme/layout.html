@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 
 <meta charset="utf-8" />
@@ -7,6 +7,7 @@
 <meta name="go-import" content="freeunit.org git https://github.com/freeunitorg/freeunit" />
 {%- endif %}
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="website">
 {%- if pagename == 'index' %}
@@ -33,7 +34,6 @@
   src: local('OpenSans'), local('Open Sans'), local('Open Sans Regular'), local('OpenSans-Regular'),
        url('{{ pathto('_static/open-sans-v40-latin_latin-ext-regular.woff2', 1) + '?' + md5('theme/static/open-sans-v40-latin_latin-ext-regular.woff2') }}') format('woff2');
 }
-
 /* open-sans-italic - latin_latin-ext */
 @font-face {
   font-display: swap;
@@ -43,7 +43,6 @@
   src: local('OpenSansItalic'), local('Open Sans Italic'), local('OpenSans Italic'), local('OpenSans-Italic'),
        url('{{ pathto('_static/open-sans-v40-latin_latin-ext-italic.woff2', 1) + '?' + md5('theme/static/open-sans-v40-latin_latin-ext-italic.woff2') }}') format('woff2');
 }
-
 /* open-sans-700 - latin_latin-ext */
 @font-face {
   font-display: swap;
@@ -53,7 +52,6 @@
   src: local('OpenSansBold'), local('Open Sans Bold'), local('OpenSans Bold'), local('OpenSans-Bold'),
        url('{{ pathto('_static/open-sans-v40-latin_latin-ext-700.woff2', 1) + '?' + md5('theme/static/open-sans-v40-latin_latin-ext-700.woff2') }}') format('woff2');
 }
-
 /* open-sans-700italic - latin_latin-ext */
 @font-face {
   font-display: swap;
@@ -63,7 +61,6 @@
   src: local('OpenSansBoldItalic'), local('Open Sans Bold Italic'), local('OpenSans Bold Italic'), local('OpenSans-BoldItalic'), local('OpenSans-Bold-Italic'),
        url('{{ pathto('_static/open-sans-v40-latin_latin-ext-700italic.woff2', 1) + '?' + md5('theme/static/open-sans-v40-latin_latin-ext-700italic.woff2') }}') format('woff2');
 }
-
 </style>
 <link rel="stylesheet" href="{{ pathto('_static/' + styles[-1], 1) + '?' + md5('theme/static/' + styles[-1]) }}" />
 <link rel="icon" href="{{ pathto('_static/icon.png', 1) + '?' + md5('theme/static/icon.png') }}" />
@@ -82,8 +79,14 @@
 </head>
 <body>
 
+<!-- Skip navigation for keyboard/screen-reader users -->
+<a class="skip-link" href="#content">Skip to content</a>
+
+<!-- Mobile sidebar overlay -->
+<div id="side-overlay" aria-hidden="true"></div>
+
 <div id="main">
-<div id="side">
+<nav id="side" aria-label="Site navigation">
     <h1>
         {%- if pagename != "index" %}
         <a href="{{ pathto('index') }}">
@@ -94,30 +97,176 @@
         {%- endif %}
         {% set release_year = release_date.split(',')[1].strip() %}
         <div id="version_link" title="Released on {{release_date}}">
-         <a style="text-decoration:none;" href="{{ pathto('news') }}{{release_year}}/unit-{{version}}-released/">v. {{version}}</a>
+         <a style="text-decoration:none;" href="{{ pathto('news') }}{{release_year}}/unit-{{version}}-released/">v{{version}}</a>
          </div>
     </h1>
     <div id="nxt_search_wrap">
-        <input id="nxt_search_input" type="search" placeholder="Search docs… (Cmd+K)" autocomplete="off" aria-label="Search documentation" />
-        <div id="nxt_search_results" aria-live="polite"></div>
-        <div id="nxt_search_suggestions" aria-label="Popular searches"></div>
+        <input id="nxt_search_input" type="search" placeholder="Search… (⌘K)" autocomplete="off" aria-label="Search documentation" />
+        <div id="nxt_search_results" role="listbox" aria-live="polite"></div>
+        <div id="nxt_search_suggestions" aria-label="Popular pages"></div>
     </div>
     {{ toctree(maxdepth = 4) }}
-</div>
-<div id="content">
+</nav>
+<main id="content">
     {% block body %} {% endblock %}
     {% if edit_on_github_url %}
     <div class="nxt_edit_link"><a href="{{ edit_on_github_url }}">✏️ Edit this page</a></div>
     {% endif %}
-    <div class="nxt_discuss_link"><a href="https://github.com/freeunitorg/freeunit/discussions/">💬 Discuss on GitHub</a></div>
-    <div class="nxt_github_link"><a href="https://github.com/freeunitorg/freeunit">🐙 Star on GitHub</a></div>
-    <div class="nxt_telegram_link"><a href="https://t.me/freeunit_support"><svg class="nxt-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> Join us on Telegram</a></div>
+    <div class="nxt_discuss_link"><a href="https://github.com/freeunitorg/freeunit/discussions/"> Discuss on GitHub</a></div>
+    <div class="nxt_github_link"><a href="https://github.com/freeunitorg/freeunit"> Star on GitHub</a></div>
+    <div class="nxt_telegram_link"><a href="https://t.me/freeunit_support"><svg class="nxt-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> Join Telegram</a></div>
     <p id="footer">
         © {{copyright}} <a href="https://freeunit.org/">{{author}}</a>
-        &nbsp;·&nbsp; <a href="https://github.com/freeunitorg/freeunit">🐙 Star on GitHub</a>
+        &nbsp;·&nbsp; <a href="https://github.com/freeunitorg/freeunit"> GitHub</a>
         &nbsp;·&nbsp; <a href="https://t.me/freeunit_support"><svg class="nxt-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> Telegram</a>
     </p>
+</main>
 </div>
-</div>
+
+<!-- Mobile sidebar toggle button -->
+<button id="mobile-menu-btn" aria-label="Toggle navigation" aria-expanded="false" aria-controls="side">☰</button>
+
+<!-- ♿ Accessibility Widget -->
+<div id="a11y-widget">
+  <button id="a11y-toggle"
+          aria-expanded="false"
+          aria-controls="a11y-panel"
+          aria-label="Open accessibility settings"
+          title="Accessibility settings">
+    <!-- Material Design "accessibility" icon — person with arms raised, 24×24 grid, crisp at any small size -->
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M20.5 6c-2.61.7-5.67 1-8.5 1s-5.89-.3-8.5-1L3 8c1.86.5 4 .83 6 1v13h2v-6h2v6h2V9c2-.17 4.14-.5 6-1l-.5-2zM12 6c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
+    </svg>
+    <span class="a11y-toggle-label">Accessibility</span>
+  </button>
+
+  <div id="a11y-panel"
+       role="dialog"
+       aria-label="Accessibility settings"
+       aria-modal="false"
+       hidden>
+
+    <div class="a11y-hdr">
+      <h2 class="a11y-hdr-title">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M20.5 6c-2.61.7-5.67 1-8.5 1s-5.89-.3-8.5-1L3 8c1.86.5 4 .83 6 1v13h2v-6h2v6h2V9c2-.17 4.14-.5 6-1l-.5-2zM12 6c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
+        </svg>
+        Accessibility
+      </h2>
+      <button class="a11y-close" aria-label="Close accessibility panel">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="a11y-body">
+
+      <!-- Text Size -->
+      <section class="a11y-section">
+        <h3 class="a11y-section-title">Text Size</h3>
+        <div class="a11y-btn-group" role="group" aria-label="Choose text size">
+          <button class="a11y-opt" data-a11y-group="text" data-a11y-class="" aria-pressed="true">
+            <span class="a11y-opt-icon">A</span>Default
+          </button>
+          <button class="a11y-opt" data-a11y-group="text" data-a11y-class="a11y-text-lg" aria-pressed="false">
+            <span class="a11y-opt-icon" style="font-size:1.1em">A</span>Large
+          </button>
+          <button class="a11y-opt" data-a11y-group="text" data-a11y-class="a11y-text-xl" aria-pressed="false">
+            <span class="a11y-opt-icon" style="font-size:1.25em">A</span>X-Large
+          </button>
+          <button class="a11y-opt" data-a11y-group="text" data-a11y-class="a11y-text-xxl" aria-pressed="false">
+            <span class="a11y-opt-icon" style="font-size:1.4em">A</span>Huge
+          </button>
+        </div>
+      </section>
+
+      <!-- Contrast -->
+      <section class="a11y-section">
+        <h3 class="a11y-section-title">Contrast</h3>
+        <div class="a11y-btn-group" role="group" aria-label="Choose contrast mode">
+          <button class="a11y-opt" data-a11y-group="contrast" data-a11y-class="" aria-pressed="true">
+            <span class="a11y-opt-icon">◑</span>Default
+          </button>
+          <button class="a11y-opt" data-a11y-group="contrast" data-a11y-class="a11y-contrast-light" aria-pressed="false">
+            <span class="a11y-opt-icon">☀</span>High Light
+          </button>
+          <button class="a11y-opt" data-a11y-group="contrast" data-a11y-class="a11y-contrast-dark" aria-pressed="false">
+            <span class="a11y-opt-icon">☾</span>High Dark
+          </button>
+        </div>
+      </section>
+
+      <!-- Reading Font -->
+      <section class="a11y-section">
+        <h3 class="a11y-section-title">Reading Font</h3>
+        <div class="a11y-btn-group" role="group" aria-label="Choose reading font">
+          <button class="a11y-opt" data-a11y-group="font" data-a11y-class="" aria-pressed="true">
+            <span class="a11y-opt-icon">Aa</span>Default
+          </button>
+          <button class="a11y-opt" data-a11y-group="font" data-a11y-class="a11y-dyslexic" aria-pressed="false">
+            <span class="a11y-opt-icon" style="font-family:Verdana">Aa</span>Dyslexia-friendly
+          </button>
+        </div>
+      </section>
+
+      <!-- Letter &amp; Line Spacing -->
+      <section class="a11y-section">
+        <h3 class="a11y-section-title">Spacing</h3>
+        <div class="a11y-btn-group" role="group" aria-label="Choose text spacing">
+          <button class="a11y-opt" data-a11y-group="spacing" data-a11y-class="" aria-pressed="true">
+            <span class="a11y-opt-icon">≡</span>Default
+          </button>
+          <button class="a11y-opt" data-a11y-group="spacing" data-a11y-class="a11y-spacing" aria-pressed="false">
+            <span class="a11y-opt-icon" style="letter-spacing:.1em">≡</span>Increased
+          </button>
+        </div>
+      </section>
+
+      <!-- Animations -->
+      <section class="a11y-section">
+        <h3 class="a11y-section-title">Animations</h3>
+        <div class="a11y-btn-group" role="group" aria-label="Control animations">
+          <button class="a11y-opt" data-a11y-group="motion" data-a11y-class="" aria-pressed="true">
+            <span class="a11y-opt-icon">▶</span>On
+          </button>
+          <button class="a11y-opt" data-a11y-group="motion" data-a11y-class="a11y-no-motion" aria-pressed="false">
+            <span class="a11y-opt-icon">⏸</span>Off
+          </button>
+        </div>
+      </section>
+
+      <!-- Links -->
+      <section class="a11y-section">
+        <h3 class="a11y-section-title">Link Highlighting</h3>
+        <div class="a11y-btn-group" role="group" aria-label="Control link highlighting">
+          <button class="a11y-opt" data-a11y-group="links" data-a11y-class="" aria-pressed="true">
+            <span class="a11y-opt-icon">−</span>Default
+          </button>
+          <button class="a11y-opt" data-a11y-group="links" data-a11y-class="a11y-highlight-links" aria-pressed="false">
+            <span class="a11y-opt-icon" style="text-decoration:underline">A</span>Highlight All
+          </button>
+        </div>
+      </section>
+
+      <!-- Color Vision -->
+      <section class="a11y-section">
+        <h3 class="a11y-section-title">Color Vision</h3>
+        <div class="a11y-btn-group" role="group" aria-label="Choose color mode">
+          <button class="a11y-opt" data-a11y-group="color" data-a11y-class="" aria-pressed="true">
+            <span class="a11y-opt-icon">🎨</span>Color
+          </button>
+          <button class="a11y-opt" data-a11y-group="color" data-a11y-class="a11y-grayscale" aria-pressed="false">
+            <span class="a11y-opt-icon" style="filter:grayscale(1)">🎨</span>Grayscale
+          </button>
+        </div>
+      </section>
+
+      <button id="a11y-reset" class="a11y-reset-btn" aria-label="Reset all accessibility settings to default">
+        ↺ Reset all settings
+      </button>
+
+    </div><!-- /.a11y-body -->
+  </div><!-- /#a11y-panel -->
+</div><!-- /#a11y-widget -->
+
 </body>
 </html>
