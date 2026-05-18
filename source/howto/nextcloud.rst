@@ -43,6 +43,7 @@ platform using Unit:
    <https://docs.nextcloud.com/server/latest/admin_manual/installation/nginx.html>`_:
 
    .. code-block:: json
+
       {
           "settings": {
               "http": {
