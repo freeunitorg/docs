@@ -7,6 +7,16 @@ News archive for the year 2026.
 
 .. nxt_news_entry::
    :author: FreeUnit Team
+   :description: Promote chunked-to-Content-Length request body conversion out
+                 of experimental; fix TLS busy-loop on peer close; plug
+                 mem-pool and fd leaks in port machinery; njs 0.9.8.
+   :email: team@freeunit.org
+   :title: Unit 1.35.5 Released
+   :url: news/2026/unit-1.35.5-released
+   :date: 2026-05-29
+
+.. nxt_news_entry::
+   :author: FreeUnit Team
    :description: Fix router CPU spin and connection hang under port scanning
                  load; reduce default HTTP keep-alive idle_timeout to 30s.
    :email: team@freeunit.org
