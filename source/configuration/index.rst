@@ -5605,12 +5605,15 @@ The **telemetry** option exposes the following settings:
     * - **endpoint** (required)
       - The endpoint for the OpenTelemetry (OTEL) Collector.
 
-        It takes a URL to either a gRPC or HTTP(S) endpoint.
+        A plain ``http://`` URL to which FreeUnit sends spans over OTLP/HTTP.
+        TLS is not supported for the collector connection; the collector is
+        expected on localhost or an internal network.
 
     * - **protocol** (required)
       - Determines the protocol used to communicate with the endpoint.
 
-        Can be either *http(s)* or *grpc*
+        Only *http* (OTLP/HTTP) is supported. The *grpc* value was removed in
+        FreeUnit 1.35.6.
 
     * - **batch_size**
       - Number of spans to cache before triggering a transaction with the
@@ -5620,7 +5623,8 @@ The **telemetry** option exposes the following settings:
         (OTEL) background thread sends spans over the network to the
         collector.
 
-        If specified, it must be a positive integer.
+        If specified, it must be an integer between 1 and 65536
+        (default: 128).
 
     * - **sampling_ratio**
       - Percentage of requests to trace.
@@ -5632,7 +5636,8 @@ The **telemetry** option exposes the following settings:
         headers and whatnot without storing massive amounts of duplicate
         superfluous data.
 
-        If specified, it must be a positive floating point number.
+        If specified, it must be a number between 0 and 1 inclusive
+        (default: 1). A value of 0 disables sampling of new traces.
 
 Example:
 
