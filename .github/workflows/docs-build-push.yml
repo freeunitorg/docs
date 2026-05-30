@@ -57,14 +57,13 @@ jobs:
 
       - name: Validate environment
         run: |
-          if [[ -z "${DEPLOYMENT_ENV}" ]]; then
-            echo "DEPLOYMENT_ENV=preview" >> "$GITHUB_ENV"
-          fi
-          if [[ ! "${DEPLOYMENT_ENV}" =~ ^(prod|preview)$ ]]; then
-            echo "::error::Invalid environment: ${DEPLOYMENT_ENV}. Must be prod or preview"
+          ENV="${DEPLOYMENT_ENV:-preview}"
+          if [[ ! "$ENV" =~ ^(prod|preview)$ ]]; then
+            echo "::error::Invalid environment: $ENV. Must be prod or preview"
             exit 1
           fi
-          if [[ "${DEPLOYMENT_ENV}" == "preview" && -z "${PR_NUMBER}" ]]; then
+          echo "DEPLOYMENT_ENV=$ENV" >> "$GITHUB_ENV"
+          if [[ "$ENV" == "preview" && -z "${PR_NUMBER}" ]]; then
             echo "PR_NUMBER=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
           fi
 
