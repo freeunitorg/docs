@@ -187,12 +187,14 @@ function nxt_mobile_menu_init() {
         side.classList.add('side-open')
         overlay && overlay.classList.add('overlay-open')
         btn.setAttribute('aria-expanded', 'true')
+        btn.setAttribute('aria-label', 'Close navigation')
         btn.textContent = '✕'
     }
     function closeMenu() {
         side.classList.remove('side-open')
         overlay && overlay.classList.remove('overlay-open')
         btn.setAttribute('aria-expanded', 'false')
+        btn.setAttribute('aria-label', 'Open navigation')
         btn.textContent = '☰'
     }
 
@@ -533,6 +535,9 @@ function nxt_search_render_results(results, query, container) {
         const url = nxt_search_page_url(r.ref)
         const item = document.createElement('div')
         item.className = 'nxt_search_item'
+        item.id = 'nxt_search_result_' + r.ref.replace(/[^a-zA-Z0-9_-]/g, '_')
+        item.setAttribute('role', 'option')
+        item.setAttribute('aria-selected', 'false')
 
         const a = document.createElement('a')
         a.href = url
@@ -599,6 +604,24 @@ function nxt_search_init() {
 
     let timer = null
 
+    function setResultsExpanded(isExpanded) {
+        input.setAttribute('aria-expanded', isExpanded ? 'true' : 'false')
+    }
+
+    function clearActiveResult() {
+        container.querySelectorAll('.nxt_search_item').forEach(item => {
+            item.classList.remove('nxt_active')
+            item.setAttribute('aria-selected', 'false')
+        })
+        input.removeAttribute('aria-activedescendant')
+    }
+
+    function closeResults() {
+        container.classList.remove('nxt_search_open')
+        clearActiveResult()
+        setResultsExpanded(false)
+    }
+
     document.addEventListener('keydown', e => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault()
@@ -621,7 +644,7 @@ function nxt_search_init() {
         const q = input.value.trim()
 
         if (!q) {
-            container.classList.remove('nxt_search_open')
+            closeResults()
             container.innerHTML = ''
             nxt_search_load_index().then(() => {
                 nxt_search_render_suggestions(suggestedContainer)
@@ -637,6 +660,8 @@ function nxt_search_init() {
                 let results = _nxt_search_index.search(q + '~1')  // fuzzy
                 if (!results.length) results = _nxt_search_index.search(q)  // exact fallback
                 nxt_search_render_results(results, q, container)
+                clearActiveResult()
+                setResultsExpanded(true)
             })
         }, 200)
     })
@@ -648,7 +673,7 @@ function nxt_search_init() {
             if (active) { window.location.href = active.href }
         }
         if (e.key === 'Escape') {
-            container.classList.remove('nxt_search_open')
+            closeResults()
             suggestedContainer.classList.remove('nxt_search_open')
             input.value = ''
         }
@@ -658,17 +683,21 @@ function nxt_search_init() {
             if (!items.length) return
             const cur = container.querySelector('.nxt_search_item.nxt_active')
             let idx = items.indexOf(cur)
-            items.forEach(i => i.classList.remove('nxt_active'))
+            clearActiveResult()
             if (e.key === 'ArrowDown') idx = Math.min(idx + 1, items.length - 1)
             else idx = Math.max(idx - 1, 0)
-            items[idx] && items[idx].classList.add('nxt_active')
-            items[idx] && items[idx].scrollIntoView({ block: 'nearest' })
+            if (items[idx]) {
+                items[idx].classList.add('nxt_active')
+                items[idx].setAttribute('aria-selected', 'true')
+                input.setAttribute('aria-activedescendant', items[idx].id)
+                items[idx].scrollIntoView({ block: 'nearest' })
+            }
         }
     })
 
     document.addEventListener('click', e => {
         if (!input.contains(e.target) && !container.contains(e.target) && !suggestedContainer.contains(e.target)) {
-            container.classList.remove('nxt_search_open')
+            closeResults()
             suggestedContainer.classList.remove('nxt_search_open')
         }
     })
@@ -677,4 +706,3 @@ function nxt_search_init() {
         requestIdleCallback(nxt_search_load_index)
     }
 }
-

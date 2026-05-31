@@ -101,7 +101,7 @@
          </div>
     </h1>
     <div id="nxt_search_wrap">
-        <input id="nxt_search_input" type="search" placeholder="Search… (⌘K)" autocomplete="off" aria-label="Search documentation" />
+        <input id="nxt_search_input" type="search" placeholder="Search… (⌘K)" autocomplete="off" aria-label="Search documentation" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="nxt_search_results" />
         <div id="nxt_search_results" role="listbox" aria-live="polite"></div>
         <div id="nxt_search_suggestions" aria-label="Popular pages"></div>
     </div>
@@ -124,7 +124,7 @@
 </div>
 
 <!-- Mobile sidebar toggle button -->
-<button id="mobile-menu-btn" aria-label="Toggle navigation" aria-expanded="false" aria-controls="side">☰</button>
+<button id="mobile-menu-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="side">☰</button>
 
 <!-- ♿ Accessibility Widget -->
 <div id="a11y-widget">
@@ -143,7 +143,7 @@
   <div id="a11y-panel"
        role="dialog"
        aria-label="Accessibility settings"
-       aria-modal="false"
+       aria-modal="true"
        hidden>
 
     <div class="a11y-hdr">
