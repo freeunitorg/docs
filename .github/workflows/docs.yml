@@ -20,7 +20,6 @@ on:
 
 permissions:
   contents: read
-  pull_requests: read
 
 jobs:
   call-docs-build-push:
