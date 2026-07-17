@@ -24,11 +24,6 @@ permissions:
 jobs:
   call-docs-build-push:
     uses: freeunitorg/docs/.github/workflows/docs-build-push.yml@main
-    permissions:
-      pull-requests: write
-      contents: read
-      pages: write
-      id-token: write
     with:
       production_url_path: ""
       preview_url_path: "/previews/docs"
