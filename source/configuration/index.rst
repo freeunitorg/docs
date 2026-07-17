@@ -3445,6 +3445,13 @@ if Unit's underlying OS supports them:
 
        cgroup :nxt_hint:`mnt <The mount namespace>` :nxt_hint:`net <The network namespace>` pid ... :nxt_hint:`user <The credential namespace>` :nxt_hint:`uts <The uname namespace>`
 
+.. note::
+
+   **isolation** relies on privileged namespace and mount syscalls, which
+   Docker's default container settings block.  See
+   :ref:`Running Isolation in a Container (Docker) <security-isolation-docker>`
+   for the capability, seccomp, and AppArmor settings a container must grant.
+
 The **isolation** application option
 has the following members:
 
