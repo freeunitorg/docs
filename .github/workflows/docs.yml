@@ -25,8 +25,8 @@ jobs:
   call-docs-build-push:
     uses: freeunitorg/docs/.github/workflows/docs-build-push.yml@main
     permissions:
-      pull-requests: write
       contents: read
+      issues: write
       pages: write
       id-token: write
     with:
