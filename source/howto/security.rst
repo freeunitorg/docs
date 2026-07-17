@@ -773,8 +773,9 @@ Docker: Seccomp Profile (AF_ALG)
 kernel ``algif_aead`` component, reachable via the ``AF_ALG`` socket interface
 (domain 38).  It affects kernels 4.14 and later and requires only local user
 access — including from within a container.  FreeUnit images ship a seccomp
-profile that blocks ``socket(AF_ALG, ...)`` at the kernel level regardless of
-whether the host kernel is patched.
+profile that blocks the direct ``socket(AF_ALG, ...)`` call at the kernel level
+regardless of whether the host kernel is patched (see the caveat below for the
+``socketcall(2)`` multiplexer path).
 
 **Actions**: Pass the bundled profile at ``docker run`` time:
 
@@ -797,10 +798,26 @@ without cloning the repository:
 
 .. note::
 
-   The profile uses ``defaultAction: SCMP_ACT_ALLOW`` with explicit deny
-   rules for AF_ALG (38) and TIPC (40).  This is intentional: libseccomp
-   ORs multiple ``NE`` conditions on the same argument index, making an
-   ``SCMP_ACT_ERRNO``-default approach unreliable for this use case.
+   The profile uses ``defaultAction: SCMP_ACT_ALLOW`` with a single explicit
+   deny rule, for AF_ALG (38).  The ``SCMP_ACT_ALLOW`` default is intentional:
+   libseccomp ORs multiple ``NE`` conditions on the same argument index,
+   making an ``SCMP_ACT_ERRNO``-default approach unreliable for this use
+   case.  The profile is deliberately single-purpose — passing it via
+   ``--security-opt`` replaces Docker's default profile entirely, so it
+   blocks AF_ALG and nothing else.
+
+.. warning::
+
+   The profile filters the direct ``socket(2)`` syscall only — it does **not**
+   filter the ``socketcall(2)`` multiplexer.  On i386, s390x, and other
+   architectures that route socket creation through ``socketcall`` — and on
+   x86-64 through the i386 ``int $0x80`` entry — a process can still open an
+   ``AF_ALG`` socket, so this seccomp profile alone does not fully block
+   CVE-2026-31431 on those paths.  Close them with an AppArmor (``deny network
+   alg``) or SELinux (``alg_socket``) rule, or with the host-level workaround
+   below, which disables the vulnerable ``algif_aead`` module outright and is
+   effective regardless of architecture.  See :ref:`security-isolation-docker`
+   for the full cross-LSM analysis.
 
 **Host-level workaround** (unpatched kernels, applies outside Docker too):
 
@@ -838,3 +855,157 @@ additional level of separation and containment for your apps, such as:
 `namespace <https://www.nginx.com/blog/application-isolation-nginx-unit/>`_ and
 `file system <https://www.nginx.com/blog/filesystem-isolation-nginx-unit/>`_
 isolation.
+
+.. _security-isolation-docker:
+
+.. nxt_details:: Running Isolation in a Container (Docker)
+   :hash: sec-isolation-docker
+
+   To set up its :ref:`namespaces <configuration-proc-mgmt-isolation>`,
+   **rootfs**, and mounts, Unit's **isolation** feature calls a handful of
+   privileged syscalls in the app process: **unshare(2)** (for
+   **CLONE_NEWUSER**, **CLONE_NEWPID**, **CLONE_NEWNET**, **CLONE_NEWUTS**,
+   **CLONE_NEWNS**, and **CLONE_NEWCGROUP**), **mount(2)**, **umount2(2)**,
+   `pivot_root(2)
+   <https://man7.org/linux/man-pages/man2/pivot_root.2.html>`__,
+   **chroot(2)** (used for a **rootfs** configured without a mount
+   **namespace**), and **openat2(2)** (to resolve mount targets beneath
+   **rootfs** without following symlinks out of it).
+
+   Under Docker's *default* container settings these operations fail with
+   **EPERM**.  Three independent layers gate them, and an **isolation**
+   config with a **rootfs** must satisfy all three:
+
+   **1. Capability.**  Default containers drop **CAP_SYS_ADMIN**, which
+   **unshare(CLONE_NEW*)**, **mount**, **umount2**, and **pivot_root** all
+   require; grant it with **--cap-add SYS_ADMIN**.  A **rootfs** bind-mounts
+   the language runtime, **procfs**, and **tmpfs** by default (the
+   **automount** option), so **mount** and **openat2** are used even for a
+   chroot-only **rootfs** — not only when a mount **namespace** is requested.
+
+   **2. Seccomp.**  Docker's default profile denies most syscalls
+   (``defaultAction: SCMP_ACT_ERRNO``) but allows **unshare**, **mount**,
+   and **umount2** once the container holds **CAP_SYS_ADMIN**, plus
+   **chroot** and **openat2** (the latter only on Docker 20.10.10 and
+   newer).  The one syscall it never allows is **pivot_root**, so a
+   **rootfs** that pivots (one with a mount **namespace**,
+   ``"namespaces": {"mount": true}``) stays blocked.  Two ways to unblock
+   **pivot_root**:
+
+   - *Preferred* — copy Docker's default profile and add a **pivot_root**
+     ``allow`` rule, keeping its whole denylist intact.  Check that the
+     profile you copy carries the :ref:`AF_ALG mitigation
+     <security-seccomp-docker>` (see below).
+   - *Simplest* — run the bundled ``seccomp-no-af-alg.json`` itself.  It
+     permits every isolation syscall and denies AF_ALG, but because it is
+     ``defaultAction: SCMP_ACT_ALLOW`` it forfeits the rest of Docker's
+     default seccomp denylist — so prefer it only where the capability and
+     AppArmor layers already constrain the container.
+
+   Whether a copied default profile denies AF_ALG depends on the Docker
+   version it came from.  **Docker 29.4.2** and newer allow ``socket`` only
+   for domains outside the 38–40 range — three rules, ``arg0 < 38``,
+   ``arg0 == 39``, ``arg0 > 40`` — which denies both AF_ALG (38) and
+   AF_VSOCK (40).  Older profiles allow ``socket`` under a single
+   ``arg0 != AF_VSOCK`` condition, which leaves AF_ALG reachable.  If yours
+   is the older shape, **replace** that ``socket`` rule with the three range
+   rules; appending an AF_ALG deny rule beside it does *not* work, because
+   seccomp evaluation is first-match-wins and the inherited allow rule still
+   matches AF_ALG (`moby#52494
+   <https://github.com/moby/moby/pull/52494>`__).  Copying from a 29.4.2+
+   profile avoids the edit entirely.
+
+   Avoid **--security-opt seccomp=unconfined** (turns off all filtering,
+   AF_ALG deny included) and **--privileged** (every capability, no seccomp).
+
+   **3. AppArmor.**  On hosts with AppArmor enabled — the default on Debian
+   and Ubuntu — Docker also applies its **docker-default** profile, which
+   mediates mount operations independently of capabilities and seccomp: it
+   denies **mount** and grants no **pivot_root** rule (only **umount**), so
+   both stay blocked.  A **rootfs** therefore still fails with **EPERM** — at
+   **mount** for its automounts, and, when it pivots, at **pivot_root** too.
+   Allow **both** with a custom AppArmor profile (preferred), or relax the
+   policy with **--security-opt apparmor=unconfined** (blunter, comparable to
+   **seccomp=unconfined**).  A **mount** or **pivot_root** denial while the
+   capability and seccomp are already in place points at AppArmor.
+
+   Combining the three, the *simplest* working recipe for a pivoting
+   **rootfs** — the bundled profile plus a relaxed AppArmor policy, with the
+   trade-offs noted above — is:
+
+   .. code-block:: console
+
+      # docker run --cap-add SYS_ADMIN \
+            --security-opt seccomp=pkg/docker/seccomp-no-af-alg.json \
+            --security-opt apparmor=unconfined \
+            ghcr.io/freeunitorg/freeunit:latest-minimal
+
+   For a hardened setup, swap in a Docker-default-derived seccomp profile
+   (gate 2) and a custom AppArmor profile (gate 3) instead of the bundled
+   profile and ``apparmor=unconfined``.
+
+   .. note::
+
+      On **Docker 29.4.3** and newer, relaxing AppArmor also relaxes part of
+      the AF_ALG mitigation.  29.4.2 denied the ``socketcall(2)`` multiplexer
+      in seccomp, but 29.4.3 reverted that (it broke i386 workloads) and
+      moved AF_ALG coverage for that path to its AppArmor (``deny network
+      alg``) and SELinux rules.  Neither Docker's current default profile nor
+      the bundled ``seccomp-no-af-alg.json`` filters ``socketcall``, so with
+      **apparmor=unconfined** a process can reach AF_ALG through it —
+      including from a 64-bit binary via the i386 ``int $0x80`` entry.  A
+      custom AppArmor profile that keeps ``deny network alg`` closes this;
+      ``apparmor=unconfined`` does not.
+
+      On SELinux hosts, don't assume the SELinux half covers it either: the
+      ``alg_socket`` rule applies only if the daemon runs with
+      ``selinux-enabled: true`` (in ``daemon.json`` or via
+      ``--selinux-enabled``), which is **not** the default.  Without it, and
+      with AppArmor absent or unconfined, the ``socketcall`` path to AF_ALG
+      stays open whichever of these seccomp profiles you use.
+
+   A chroot-only **rootfs** drops the ``"namespaces": {"mount": true}``
+   requirement, so **pivot_root** is never called.  With the automounts left
+   at their defaults it still uses **mount**, so it needs the same
+   capability, a seccomp policy allowing **mount**/**openat2**, and, on
+   AppArmor hosts, the AppArmor step above.
+
+   Turning *all three* automounts off, however, removes every **mount** —
+   and with it every reason to widen the container:
+
+   .. code-block:: json
+
+      {
+          "rootfs": ":nxt_ph:`/path/to/rootfs <Path to the prepared root file system>`",
+          "automount": {
+              "language_deps": false,
+              "tmpfs": false,
+              "procfs": false
+          }
+      }
+
+   That leaves **chroot(2)** as the only privileged call, and Docker's
+   defaults already allow it: **CAP_SYS_CHROOT** is in the default capability
+   set, and the default seccomp profile permits **chroot** for containers
+   holding it.  Such a **rootfs** needs no extra **docker run** flags —
+   no **SYS_ADMIN**, no seccomp or AppArmor changes.  The trade-off is that
+   the **rootfs** must already contain the language runtime, since
+   **language_deps** is what bind-mounts it in.
+
+   .. note::
+
+      For any **isolation** config that mounts or unshares — that is,
+      everything above except the automounts-off case — **--cap-add
+      SYS_ADMIN** is required regardless of the seccomp and AppArmor choices:
+      a permissive profile alone doesn't grant the capability, so the app
+      still fails with **EPERM** if only the seccomp or AppArmor option is
+      changed.
+
+   .. note::
+
+      This friction is specific to Docker's default confinement, not to
+      **isolation** itself.  On bare metal — for example, Debian Trixie,
+      which leaves unprivileged user namespaces enabled by default — Unit's
+      **isolation** feature works with no special flags, since there's no
+      seccomp profile, AppArmor policy, or dropped capability standing in
+      the way.
