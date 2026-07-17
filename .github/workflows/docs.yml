@@ -20,16 +20,11 @@ on:
 
 permissions:
   contents: read
+  pull_requests: read
 
 jobs:
   call-docs-build-push:
     uses: freeunitorg/docs/.github/workflows/docs-build-push.yml@main
-    permissions:
-      contents: read
-      issues: write
-      pull_requests: write
-      pages: write
-      id-token: write
     with:
       production_url_path: ""
       preview_url_path: "/previews/docs"
