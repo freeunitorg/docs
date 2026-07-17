@@ -8,17 +8,10 @@
 
 
 function nxt_scroll_init() {
-    const h1 = document.querySelector('#side h1')
-
-    if (window.scrollY > 50) {
-        h1.classList.add('notrans', 'compact')
-    }
-
-    window.addEventListener('scroll', function() {
-        h1.classList.remove('notrans')
-        h1.classList.toggle('compact', window.scrollY > 50)
-    })
+    // Scroll-based compact logo animation has been removed.
+    // The logo now uses a static flex layout.
 }
+
 
 
 function nxt_tab_click(e) {
@@ -184,15 +177,249 @@ function nxt_copy_reset() {
 }
 
 
+function nxt_mobile_menu_init() {
+    const btn = document.getElementById('mobile-menu-btn')
+    const side = document.getElementById('side')
+    const overlay = document.getElementById('side-overlay')
+    if (!btn || !side) return
+
+    function openMenu() {
+        side.classList.add('side-open')
+        overlay && overlay.classList.add('overlay-open')
+        btn.setAttribute('aria-expanded', 'true')
+        btn.setAttribute('aria-label', 'Close navigation')
+        btn.textContent = '✕'
+    }
+    function closeMenu() {
+        side.classList.remove('side-open')
+        overlay && overlay.classList.remove('overlay-open')
+        btn.setAttribute('aria-expanded', 'false')
+        btn.setAttribute('aria-label', 'Open navigation')
+        btn.textContent = '☰'
+    }
+
+    btn.addEventListener('click', () => {
+        side.classList.contains('side-open') ? closeMenu() : openMenu()
+    })
+    overlay && overlay.addEventListener('click', closeMenu)
+
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && side.classList.contains('side-open')) closeMenu()
+    })
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Accessibility Widget
+ * Settings are stored in localStorage under the key 'a11y_prefs'
+ * as a JSON object: { text: '', contrast: '', font: '', spacing: '',
+ *                     motion: '', links: '', color: '' }
+ * Each value is either '' (default) or a CSS class name to apply to <html>.
+ * ───────────────────────────────────────────────────────────────────── */
+
+// All known a11y class names — cleaned up on reset
+const A11Y_ALL_CLASSES = [
+    'a11y-text-lg', 'a11y-text-xl', 'a11y-text-xxl',
+    'a11y-contrast-light', 'a11y-contrast-dark',
+    'a11y-dyslexic',
+    'a11y-spacing',
+    'a11y-no-motion',
+    'a11y-highlight-links',
+    'a11y-grayscale',
+]
+
+const A11Y_STORAGE_KEY = 'a11y_prefs'
+
+function a11y_load_prefs() {
+    try {
+        return JSON.parse(localStorage.getItem(A11Y_STORAGE_KEY) || '{}')
+    } catch (e) {
+        return {}
+    }
+}
+
+function a11y_save_prefs(prefs) {
+    try {
+        localStorage.setItem(A11Y_STORAGE_KEY, JSON.stringify(prefs))
+    } catch (e) { /* quota exceeded or incognito */ }
+}
+
+function a11y_apply_class(group, cls) {
+    const html = document.documentElement
+    // Remove all classes that belong to this group
+    const buttons = document.querySelectorAll(`[data-a11y-group="${group}"]`)
+    buttons.forEach(btn => {
+        const c = btn.getAttribute('data-a11y-class')
+        if (c) html.classList.remove(c)
+    })
+    // Add the new one
+    if (cls) html.classList.add(cls)
+}
+
+function a11y_update_buttons(prefs) {
+    document.querySelectorAll('.a11y-opt').forEach(btn => {
+        const group = btn.getAttribute('data-a11y-group')
+        const cls   = btn.getAttribute('data-a11y-class')
+        const active = (prefs[group] || '') === (cls || '')
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false')
+    })
+}
+
+// Dynamically load OpenDyslexic font from jsDelivr CDN once
+function a11y_load_dyslexic_font() {
+    if (document.getElementById('a11y-dyslexic-font')) return
+    const style = document.createElement('style')
+    style.id = 'a11y-dyslexic-font'
+    style.textContent = `
+@font-face {
+    font-family: 'OpenDyslexic';
+    src: url('https://cdn.jsdelivr.net/npm/opendyslexic@1.0.3/fonts/OpenDyslexic-Regular.woff2') format('woff2'),
+         url('https://cdn.jsdelivr.net/npm/opendyslexic@1.0.3/fonts/OpenDyslexic-Regular.otf')  format('opentype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'OpenDyslexic Mono';
+    src: url('https://cdn.jsdelivr.net/npm/opendyslexic@1.0.3/fonts/OpenDyslexicMono-Regular.woff2') format('woff2'),
+         url('https://cdn.jsdelivr.net/npm/opendyslexic@1.0.3/fonts/OpenDyslexicMono-Regular.otf')  format('opentype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}`
+    document.head.appendChild(style)
+}
+
+function nxt_a11y_init() {
+    const toggle  = document.getElementById('a11y-toggle')
+    const panel   = document.getElementById('a11y-panel')
+    const closeBtn = document.querySelector('.a11y-close')
+    const resetBtn = document.getElementById('a11y-reset')
+    if (!toggle || !panel) return
+
+    let prefs = a11y_load_prefs()
+
+    // Apply saved prefs on load
+    Object.entries(prefs).forEach(([group, cls]) => {
+        a11y_apply_class(group, cls)
+        if (group === 'font' && cls === 'a11y-dyslexic') a11y_load_dyslexic_font()
+    })
+    a11y_update_buttons(prefs)
+
+    // ── Open / Close panel ──────────────────────────────────────────────
+    function openPanel() {
+        panel.hidden = false
+        toggle.setAttribute('aria-expanded', 'true')
+        // Focus first interactive element in panel
+        const first = panel.querySelector('button:not([hidden])')
+        if (first) first.focus()
+    }
+
+    function closePanel() {
+        panel.hidden = true
+        toggle.setAttribute('aria-expanded', 'false')
+        toggle.focus()
+    }
+
+    toggle.addEventListener('click', () => {
+        panel.hidden ? openPanel() : closePanel()
+    })
+
+    closeBtn && closeBtn.addEventListener('click', closePanel)
+
+    // Close on Escape when panel is open
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !panel.hidden) {
+            e.stopPropagation()
+            closePanel()
+        }
+    })
+
+    // Close when clicking outside widget
+    document.addEventListener('click', e => {
+        const widget = document.getElementById('a11y-widget')
+        if (!panel.hidden && widget && !widget.contains(e.target)) {
+            closePanel()
+        }
+    })
+
+    // Focus trap inside panel
+    panel.addEventListener('keydown', e => {
+        if (e.key !== 'Tab') return
+        const focusable = Array.from(panel.querySelectorAll('button:not([disabled])'))
+        if (!focusable.length) return
+        const first = focusable[0]
+        const last  = focusable[focusable.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault()
+            last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+        }
+    })
+
+    // ── Toggle option buttons ────────────────────────────────────────────
+    panel.querySelectorAll('.a11y-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const group = btn.getAttribute('data-a11y-group')
+            const cls   = btn.getAttribute('data-a11y-class') || ''
+
+            prefs[group] = cls
+            a11y_apply_class(group, cls)
+            a11y_update_buttons(prefs)
+            a11y_save_prefs(prefs)
+
+            // Load dyslexic font on demand
+            if (group === 'font' && cls === 'a11y-dyslexic') {
+                a11y_load_dyslexic_font()
+            }
+        })
+    })
+
+    // ── Reset ────────────────────────────────────────────────────────────
+    resetBtn && resetBtn.addEventListener('click', () => {
+        prefs = {}
+        A11Y_ALL_CLASSES.forEach(c => document.documentElement.classList.remove(c))
+        a11y_update_buttons(prefs)
+        a11y_save_prefs(prefs)
+        // Announce to screen readers
+        const msg = document.createElement('div')
+        msg.setAttribute('role', 'status')
+        msg.setAttribute('aria-live', 'polite')
+        msg.className = 'sr-only'
+        msg.textContent = 'Accessibility settings have been reset to default.'
+        document.body.appendChild(msg)
+        setTimeout(() => msg.remove(), 3000)
+    })
+
+    // ── Keyboard shortcut: Alt + A ───────────────────────────────────────
+    document.addEventListener('keydown', e => {
+        if (e.altKey && e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault()
+            panel.hidden ? openPanel() : closePanel()
+        }
+    })
+}
+
+
 function nxt_dom_ready() {
     nxt_scroll_init()
     nxt_tab_init()
     nxt_hash_change()
     nxt_search_init()
+    nxt_mobile_menu_init()
+    nxt_a11y_init()
+
+    // Adjust search placeholder for non-Mac platforms
+    const input = document.getElementById('nxt_search_input')
+    if (input && !/Mac|iPhone|iPad/.test(navigator.platform || '')) {
+        input.placeholder = input.placeholder.replace('⌘K', 'Ctrl+K')
+    }
 
     if (IntersectionObserver) {
         nxt_nav_init()
-
     } else {
         console.log('IntersectionObserver API is not available')
     }
@@ -308,6 +535,9 @@ function nxt_search_render_results(results, query, container) {
         const url = nxt_search_page_url(r.ref)
         const item = document.createElement('div')
         item.className = 'nxt_search_item'
+        item.id = 'nxt_search_result_' + r.ref.replace(/[^a-zA-Z0-9_-]/g, '_')
+        item.setAttribute('role', 'option')
+        item.setAttribute('aria-selected', 'false')
 
         const a = document.createElement('a')
         a.href = url
@@ -374,6 +604,24 @@ function nxt_search_init() {
 
     let timer = null
 
+    function setResultsExpanded(isExpanded) {
+        input.setAttribute('aria-expanded', isExpanded ? 'true' : 'false')
+    }
+
+    function clearActiveResult() {
+        container.querySelectorAll('.nxt_search_item').forEach(item => {
+            item.classList.remove('nxt_active')
+            item.setAttribute('aria-selected', 'false')
+        })
+        input.removeAttribute('aria-activedescendant')
+    }
+
+    function closeResults() {
+        container.classList.remove('nxt_search_open')
+        clearActiveResult()
+        setResultsExpanded(false)
+    }
+
     document.addEventListener('keydown', e => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault()
@@ -396,7 +644,7 @@ function nxt_search_init() {
         const q = input.value.trim()
 
         if (!q) {
-            container.classList.remove('nxt_search_open')
+            closeResults()
             container.innerHTML = ''
             nxt_search_load_index().then(() => {
                 nxt_search_render_suggestions(suggestedContainer)
@@ -412,25 +660,44 @@ function nxt_search_init() {
                 let results = _nxt_search_index.search(q + '~1')  // fuzzy
                 if (!results.length) results = _nxt_search_index.search(q)  // exact fallback
                 nxt_search_render_results(results, q, container)
+                clearActiveResult()
+                setResultsExpanded(true)
             })
         }, 200)
     })
 
     input.addEventListener('keydown', e => {
         if (e.key === 'Enter') {
-            const first = container.querySelector('.nxt_search_item a')
-            if (first) { window.location.href = first.href }
+            const active = container.querySelector('.nxt_search_item.nxt_active a')
+                        || container.querySelector('.nxt_search_item a')
+            if (active) { window.location.href = active.href }
         }
         if (e.key === 'Escape') {
-            container.classList.remove('nxt_search_open')
+            closeResults()
             suggestedContainer.classList.remove('nxt_search_open')
             input.value = ''
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault()
+            const items = Array.from(container.querySelectorAll('.nxt_search_item'))
+            if (!items.length) return
+            const cur = container.querySelector('.nxt_search_item.nxt_active')
+            let idx = items.indexOf(cur)
+            clearActiveResult()
+            if (e.key === 'ArrowDown') idx = Math.min(idx + 1, items.length - 1)
+            else idx = Math.max(idx - 1, 0)
+            if (items[idx]) {
+                items[idx].classList.add('nxt_active')
+                items[idx].setAttribute('aria-selected', 'true')
+                input.setAttribute('aria-activedescendant', items[idx].id)
+                items[idx].scrollIntoView({ block: 'nearest' })
+            }
         }
     })
 
     document.addEventListener('click', e => {
         if (!input.contains(e.target) && !container.contains(e.target) && !suggestedContainer.contains(e.target)) {
-            container.classList.remove('nxt_search_open')
+            closeResults()
             suggestedContainer.classList.remove('nxt_search_open')
         }
     })
@@ -439,4 +706,3 @@ function nxt_search_init() {
         requestIdleCallback(nxt_search_load_index)
     }
 }
-
