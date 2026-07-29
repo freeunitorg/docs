@@ -1406,85 +1406,18 @@ Community Repositories
 
    .. tab:: FreeBSD
 
-        To install Unit from
-        `FreeBSD packages
-        <https://docs.freebsd.org/en/books/handbook/ports/#pkgng-intro>`_,
+        To install
+        `FreeUnit
+        <https://www.freshports.org/www/freeunit/>`_,
         get the core package and other packages you need:
 
         .. code-block:: console
 
-           # pkg install -y unit
+           # pkg install -y freeunit
 
         .. code-block:: console
 
-           # pkg install -y :nxt_hint:`libunit <Required to install the Node.js module>`
-
-        .. code-block:: console
-
-           # pkg install -y unit-java8  \
-                            unit-perl5.36  \
-                            unit-php81 unit-php82 unit-php83  \
-                            unit-python39  \
-                            unit-ruby3.2  \
-                            unit-wasm
-
-        .. code-block:: console
-
-           # service unitd restart  # Necessary for Unit to pick up any changes in language module setup
-
-        To install Unit from
-        `FreeBSD ports
-        <https://docs.freebsd.org/en/books/handbook/ports/#ports-using>`_,
-        start by updating your port collection.
-
-        With :program:`portsnap`:
-
-        .. code-block:: console
-
-           # portsnap fetch update
-
-        With :program:`git`:
-
-        .. code-block:: console
-
-           # cd /usr/ports && git pull
-
-        Next, browse to the port path
-        to build and install the core Unit port:
-
-        .. code-block:: console
-
-           # cd /usr/ports/www/unit/
-
-        .. code-block:: console
-
-           # make
-
-        .. code-block:: console
-
-           # make install
-
-        Repeat the steps for the other ports you need:
-        `libunit
-        <https://www.freshports.org/devel/libunit/>`_
-        (required to install the Node.js
-        :ref:`module <installation-nodejs-package>`
-        and build
-        :ref:`Go apps <configuration-go>`),
-        `unit-java
-        <https://www.freshports.org/www/unit-java/>`__,
-        `unit-perl
-        <https://www.freshports.org/www/unit-perl/>`__,
-        `unit-php
-        <https://www.freshports.org/www/unit-php/>`__,
-        `unit-python
-        <https://www.freshports.org/www/unit-python/>`__,
-        `unit-ruby
-        <https://www.freshports.org/www/unit-ruby/>`__,
-        or
-        `unit-wasm
-        <https://www.freshports.org/www/unit-wasm/>`__.
-        After that, restart Unit:
+           # pkg install -y freeunit-php85 freeunit-python312
 
         .. code-block:: console
 
@@ -1494,11 +1427,14 @@ Community Repositories
 
         .. list-table::
 
+           * - Rc script
+             - **/usr/local/etc/rc.d/unitd**
+
            * - Control :ref:`socket <source-startup>`
              - **/var/run/unit/control.unit.sock**
 
            * - Log :ref:`file <troubleshooting-log>`
-             - **/var/log/unit/unit.log**
+             - **/var/log/freeunit/freeunit.log**
 
            * - Non-privileged :ref:`user and group <security-apps>`
              - **www**
@@ -1506,19 +1442,19 @@ Community Repositories
            * - Startup and shutdown
              - .. code-block:: console
 
-                  # :nxt_hint:`service unitd enable <Enable Unit to launch automatically at system startup>`
+                  # :nxt_hint:`service unitd enable <Enable FreeUnit to launch automatically at system startup>`
 
                .. code-block:: console
 
-                  # :nxt_hint:`service unitd restart <Start or restart Unit; one-time action>`
+                  # :nxt_hint:`service unitd restart <Start or restart FreeUnit; one-time action>`
 
                .. code-block:: console
 
-                  # :nxt_hint:`service unitd stop <Stop a running Unit; one-time action>`
+                  # :nxt_hint:`service unitd stop <Stop a running FreeUnit; one-time action>`
 
                .. code-block:: console
 
-                  # :nxt_hint:`service unitd disable <Disable Unit's automatic startup>`
+                  # :nxt_hint:`service unitd disable <Disable FreeUnit's automatic startup>`
 
 
    .. tab:: Gentoo

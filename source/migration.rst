@@ -262,69 +262,6 @@ The rebase is mechanical:
   * - Non-privileged :ref:`user and group`
     - **nobody**
 
- .. tab:: FreeBSD
-
- Recipe: the ``www/unit`` port in
- `freebsd/freebsd-ports
- <https://cgit.freebsd.org/ports/tree/www/unit>`_.
-
- Strategy: create a new slave-free port ``www/freeunit`` and mark the
- old ``www/unit`` port deprecated with ``MOVED`` redirect.
-
- #. **Copy the port tree**
-
-    .. code-block:: console
-
-     $ cp -R www/unit www/freeunit
-     $ cp -R www/unit-php www/freeunit-php
-     $ cp -R www/unit-python www/freeunit-python
-     # …repeat for perl, ruby, wasm, libunit → libfreeunit
-
- #. **Update each Makefile**
-
-    .. code-block:: make
-     :caption: www/freeunit/Makefile
-
-     PORTNAME=    freeunit
-     DISTVERSION= 1.35.3
-     CATEGORIES=  www
-     MAINTAINER=  you@example.org
-     COMMENT=     Dynamic application server, community LTS fork of NGINX Unit
-
-     USE_GITHUB=  yes
-     GH_ACCOUNT=  freeunitorg
-     GH_PROJECT=  freeunit
-
-     CONFLICTS_INSTALL= unit-[0-9]* unit-php-[0-9]* unit-python-[0-9]* unit-perl-[0-9]* unit-ruby-[0-9]* unit-wasm-[0-9]*
-
- #. **Regenerate distinfo**
-
-    .. code-block:: console
-
-     $ make makesum
-
- #. **Register the rename in ``MOVED``**
-
-    .. code-block:: text
-
-     www/unit|www/freeunit|2026-04-19|Project renamed to FreeUnit
-
- #. **Test-build via poudriere, then submit a PR** to
-    `freebsd-ports <https://github.com/freebsd/freebsd-ports>`_.
-
- Runtime details (unchanged from the legacy ``www/unit`` port):
-
- .. list-table::
-
-  * - Control :ref:`socket`
-    - **/var/run/unit/control.unit.sock**
-
-  * - Log :ref:`file`
-    - **/var/log/unit/unit.log**
-
-  * - Non-privileged :ref:`user and group`
-    - **www**
-
  .. tab:: Gentoo
 
  Recipe: ``www-servers/nginx-unit`` in the
@@ -1051,12 +988,6 @@ If you need to revert to the previous setup:
      .. code-block:: console
 
       $ yay -S unit
-
-    .. tab:: FreeBSD
-
-     .. code-block:: console
-
-      # pkg install unit
 
     .. tab:: Gentoo
 
