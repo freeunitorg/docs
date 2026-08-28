@@ -393,7 +393,7 @@ or support for certain features:
      - Turns off UNIX domain sockets support for control and routing.
 
    * - **--openssl**
-     - Turns on OpenSSL support.  Make sure OpenSSL (1.0.1+) header files and
+     - Turns on OpenSSL support.  Make sure OpenSSL (1.1.1+) header files and
        libraries are in your compiler's path; it can be set with the
        :option:`!--cc-opt` and :option:`!--ld-opt` options or the
        :envvar:`CFLAGS` and :envvar:`LDFLAGS` environment variables when

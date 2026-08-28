@@ -84,7 +84,7 @@ App languages and platforms that Unit can run
 
 Optional dependencies:
 
-- OpenSSL 1.0.1 or later for :ref:`TLS <configuration-ssl>` support
+- OpenSSL 1.1.1 or later for :ref:`TLS <configuration-ssl>` support
 
 - PCRE (8.0 or later) or PCRE2 (10.23 or later)
   for :ref:`regular expression matching

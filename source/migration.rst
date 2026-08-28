@@ -753,7 +753,7 @@ App languages and platforms that FreeUnit can run:
 
 Optional dependencies:
 
-- OpenSSL 1.0.1 or later for :ref:`TLS` support
+- OpenSSL 1.1.1 or later for :ref:`TLS` support
 - PCRE (8.0+) or PCRE2 (10.23+) for :ref:`regex`
 - Wasmtime for WebAssembly support
 
