@@ -960,6 +960,52 @@ define patterns to be compared to the request's properties:
        ("." and "..", "//").
      - Yes
 
+Besides the properties above,
+a **match** object supports the **if** option,
+which makes the step conditional
+on a :ref:`variable <configuration-variables>`
+or JavaScript expression:
+
+.. code-block:: json
+
+   {
+       "match": {
+           "if": "$cookie_session"
+       },
+
+       "action": {
+           "pass": "applications/app"
+       }
+   }
+
+If the value of **if** is empty, 0, false, null, or undefined,
+the step does not match;
+a '!' prefix inverses the condition.
+This is the same convention
+the **access_log**
+:ref:`if <conditional-access-log>` option uses.
+With njs installed,
+a template literal can express comparisons and regular expressions:
+
+.. code-block:: json
+
+   {
+       "match": {
+           "if": "`${uri == '/admin'}`"
+       },
+
+       "action": {
+           "return": 403
+       }
+   }
+
+An **if** condition can be combined
+with any of the properties above;
+the step matches only if the condition
+and every other property match.
+
+*(since 1.33.0)*
+
 .. nxt_details:: Arguments vs. query
    :hash: args-vs-query
 
