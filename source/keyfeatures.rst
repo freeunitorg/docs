@@ -130,7 +130,7 @@ Security & robustness
   :ref:`SNI <configuration-listeners-ssl>`,
   :ref:`session cache and tickets <configuration-listeners-ssl-sessions>`
   is integrated
-  (OpenSSL |_| 1.0.1 and later).
+  (OpenSSL |_| 1.1.1 and later).
 
 - Different apps
   are isolated
