@@ -32,6 +32,18 @@ instance- and app-wide metrics, and makes them available via the **GET**-only
       - Object;
         lists per-instance request statistics.
 
+    * - **telemetry**
+      - Object;
+        lists span export statistics for the configured
+        OpenTelemetry exporter.
+        Present only if Unit was built with OpenTelemetry support,
+        the **/config/settings/telemetry**
+        :ref:`option <configuration-stngs>` is set,
+        and the exporter was initialised successfully
+        (an initialisation error is reported in the log).
+
+        *(since 1.36.1)*
+
     * - **applications**
       - Object;
         each option item lists per-app process and request statistics.
@@ -68,6 +80,13 @@ Example:
 
        "requests": {
            "total": 1307
+       },
+
+       "telemetry": {
+           "spans": {
+               "exported": 1200,
+               "failed": 0
+           }
        },
 
        "applications": {
@@ -167,6 +186,63 @@ Example:
 
    "requests": {
        "total": 1307
+   }
+
+The **telemetry** object reports the health of the OpenTelemetry span
+exporter.
+It is omitted entirely
+unless Unit was built with OpenTelemetry support,
+the **/config/settings/telemetry**
+:ref:`option <configuration-stngs>` is set,
+and the exporter was initialised successfully;
+its absence is how you tell telemetry is off
+rather than idle.
+An exporter that could not be built -- an unusable endpoint or protocol --
+leaves the object absent despite the option being set,
+and reports the reason in the log.
+Its single **spans** member exposes two counters:
+
+.. list-table::
+    :header-rows: 1
+
+    * - Option
+      - Description
+
+    * - **exported**
+      - Integer;
+        spans the collector accepted.
+
+    * - **failed**
+      - Integer;
+        spans whose export to the collector failed.
+
+Both counters are cumulative
+since the exporter was last built,
+so changing any **telemetry** setting resets them to zero;
+re-applying an identical configuration does not.
+They count spans rather than export batches,
+and count only spans an export was attempted for:
+a span the **sampling_ratio** dropped
+appears in neither.
+Neither does a span the exporter discarded before attempting an export,
+which is what happens once the export queue fills behind a stalled
+collector -- so **failed** staying at zero
+does not by itself prove that nothing was lost.
+
+A healthy pipeline shows **exported** rising
+while **failed** stays at zero.
+A rising **failed** means telemetry is being lost
+before it reaches the collector.
+
+Example:
+
+.. code-block:: json
+
+   "telemetry": {
+       "spans": {
+           "exported": 1200,
+           "failed": 0
+       }
    }
 
 Each item in **applications** describes an app
