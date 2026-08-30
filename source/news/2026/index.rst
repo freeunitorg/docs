@@ -7,6 +7,18 @@ News archive for the year 2026.
 
 .. nxt_news_entry::
    :author: FreeUnit Team
+   :description: Peer-message hardening across the port protocol; chunked
+                 trailers and response-length correctness; OpenTelemetry
+                 export health in /status and a leaner traced request path;
+                 session tickets fixed on no-deprecated builds; OpenSSL
+                 1.1.1 floor and 4.0 support.
+   :email: team@freeunit.org
+   :title: Unit 1.36.1 Released
+   :url: news/2026/unit-1.36.1-released
+   :date: 2026-08-28
+
+.. nxt_news_entry::
+   :author: FreeUnit Team
    :description: Security and correctness hardening — config NUL/empty
                  rejection, rootfs mount TOCTOU, proxy response-smuggling,
                  libunit/Java bounds; SIGQUIT graceful stop; wasmtime 36.

@@ -5,8 +5,8 @@ import os, sys
 project = 'FreeUnit'
 author = 'FreeUnit Community'
 copyright = '2026'
-version = '1.36.0'
-release_date = 'Jul 16, 2026'
+version = '1.36.1'
+release_date = 'Aug 28, 2026'
 release = version
 needs_sphinx = '6.2'
 
