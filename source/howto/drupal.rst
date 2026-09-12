@@ -204,3 +204,178 @@ Unit:
   .. image:: ../images/drupal.png
      :width: 100%
      :alt: Drupal on Unit - Setup Screen
+
+************************
+Cron and background work
+************************
+
+Applies to |app| 10 and later.  Two different code paths reach the same
+result, so the version only changes which one you read.
+
+From 11.4, |app| starts up through `symfony/runtime
+<https://github.com/symfony/runtime>`__.  Its **HttpKernelRunner** sends the
+response.  Then it calls `fastcgi_finish_request() <https://www.php.net/manual/function.fastcgi-finish-request.php>`__.  Only after that does it
+call **$kernel->terminate()**.  See `drupal.org #3313404
+<https://www.drupal.org/i/3313404>`__.
+
+On |app| 10 and 11.0-11.3, **index.php** calls **$response->send()** and then
+**$kernel->terminate()**.  **Response::send()** calls
+**fastcgi_finish_request()** itself when that function exists, and the PHP
+module provides it.
+
+Either way, anything a module does in the terminate phase runs after the client
+already has its response.
+
+What this means on Unit
+=======================
+
+Unit's PHP module implements **fastcgi_finish_request()**.  When PHP calls it,
+the module tells the router that the request is complete, and PHP goes on
+running.  Two things follow.  Both were observed:
+
+- The router counts the process as idle, so **processes.max** reports more
+  capacity than you really have.
+
+- The idle clock for the process starts.  The idle reaper
+  (**idle_timeout**, default 15 seconds) can then send **QUIT** to the process
+  and remove it while the job is still running.
+
+The job itself still finishes, because Unit cannot interrupt a PHP script.  But
+a request that is already queued to that process can end up with no process to
+serve it, and Unit starts no replacement.  This was observed, not derived: in
+one measurement such a request ran about 300 seconds later, when other traffic
+started the application again.  It is tracked as `issue #321
+<https://github.com/freeunitorg/freeunit/issues/321>`__, which also records the
+conditions of that measurement.
+
+Such a request waits; it does not fail.  No 503 arrived in that measurement.
+Unit starts **limits.timeout** when it hands a request to a process.  A
+request that is still waiting for a process has no timer running.
+Note also that this option defaults to 0, which starts no timer at all.
+
+.. _howto-drupal-automated-cron:
+
+The **automated_cron** module
+=============================
+
+A stock |app| install enables **automated_cron**.  This module runs cron in the
+terminate phase of a random visitor's request, at most once every **10800**
+seconds (3 hours).  Core's cron service raises the time limit for that run to
+240 seconds (**Environment::setTimeLimit(240)** in
+**core/lib/Drupal/Core/Cron.php**).  With **"processes": {"max": 1}**, the site
+is down for as long as the run takes.
+
+Uninstall **automated_cron**, or set its interval to 0, and run cron outside
+the request:
+
+.. code-block:: console
+
+   $ drush cron
+
+Run this from a systemd timer or from system cron.  Handle queues the same way,
+with **drush queue:run**.
+
+If cron must stay in-request
+============================
+
+Two settings make the problem smaller:
+
+- **"spare": 1** keeps one process warm.  The idle reaper then never looks at
+  the last idle process.
+
+- An **idle_timeout** longer than the slowest job.
+
+Treat both as mitigations, not guarantees.  They come from a single observation
+in a run that was measuring something else.  No controlled test confirmed them.
+
+**"spare": 1** has a measured cost.  When the configuration changes, Unit logs
+lines such as::
+
+   [alert] sendmsg(...) failed (32: Broken pipe)
+
+This is the prototype writing to a spare process that has already exited.  The
+processes still exit 0 and no request is affected, so nothing breaks, but these
+lines can trigger log-based alerts.
+
+Bounding a job
+==============
+
+Use `pcntl_alarm() <https://www.php.net/manual/function.pcntl-alarm.php>`__ to bound a job.  `set_time_limit() <https://www.php.net/manual/function.set-time-limit.php>`__ does not bound it:
+it does not stop a blocking sleep or a blocking I/O call.
+
+**pcntl_alarm()** only schedules the **SIGALRM** signal.  Four things must also
+be true for it to stop the job.
+
+- The **pcntl** extension must be loaded.
+- A handler must be registered with `pcntl_signal() <https://www.php.net/manual/function.pcntl-signal.php>`__.
+- Signal delivery must be asynchronous, through `pcntl_async_signals(true) <https://www.php.net/manual/function.pcntl-async-signals.php>`__.
+  Otherwise the handler runs only at the next tick.
+- The handler must end the job itself.  A handler that returns does not stop
+  anything: the job continues from where the signal interrupted it.
+
+The third argument to **pcntl_signal()** is **restart_syscalls**.  When it is
+**true**, the system resumes a call that a signal interrupted, and a blocking
+call inside an extension or a database driver can run past the bound.  For
+**SIGALRM** PHP already defaults it to **false**, so the example passes
+**false** to state that rather than to change it.  Pass **false** explicitly
+for any other signal you handle this way.
+
+Release |app|'s cron lock in the handler.  If you do not, the lock stays held
+and cron is skipped for up to 900 seconds.
+
+Cancel the alarm when the job finishes normally.  An alarm that is still
+pending fires during the next request on the same process.
+
+A complete pattern::
+
+   pcntl_async_signals(TRUE);
+
+   pcntl_signal(SIGALRM, function () {
+     \Drupal::lock()->release('cron');
+     exit(1);
+   }, FALSE);
+
+   pcntl_alarm(240);
+
+   try {
+     \Drupal::service('cron')->run();
+   }
+   finally {
+     pcntl_alarm(0);
+   }
+
+**exit()** ends the process.  Unit starts a new one for the next request.  To
+keep the process, throw from the handler instead and catch the exception
+outside the **try** block above, but only if every library in the job is
+exception-safe.
+
+What happens on deploy
+======================
+
+A running job survives idle reaping, a configuration **PUT**, and **SIGTERM**
+to **unitd**.  In all three cases Unit sends **QUIT** as a port message, and a
+process only reads its port between requests.  Unit never turns that
+message into a signal for a process that has reported that it is ready.
+
+So a job finishes by default.  But it has no timeout and no upper limit: a
+runaway job keeps an orphaned process alive for as long as it runs.  That
+process does not appear in **/status**, and it is no longer part of the
+configuration.  Unit does not drain background jobs on deploy.  It only never
+interrupts them.
+
+.. warning::
+
+   **docker stop** sends **SIGTERM** and then, after a grace period of 10
+   seconds by default, **SIGKILL**.  The second signal does kill a running job.
+
+.. warning::
+
+   On |app| 11.4 and later, the runner skips **fastcgi_finish_request()** when
+   debug mode is on (**APP_DEBUG**).  The request then stops detaching, with no
+   error and no log line, and the visitor waits for the terminate phase again.
+
+   On |app| 10 and 11.0-11.3 there is no such switch.  **index.php** calls
+   **$response->send()**, which calls **fastcgi_finish_request()** whenever the
+   function exists.  Debug mode does not change this.  On those versions the
+   terminate phase always runs after the response, so the behaviour described
+   above always applies.

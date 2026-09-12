@@ -3372,8 +3372,8 @@ shared between all application languages:
         :ref:`here <configuration-proc-mgmt-isolation>`.
 
     * - **limits**
-      - Object; accepts two integer options,
-        **timeout** and **requests**.
+      - Object; accepts four integer options,
+        **requests**, **shm**, **start_timeout**, and **timeout**.
         Their values govern the life cycle of an application process.
         For details, see
         :ref:`here <configuration-proc-mgmt-lmts>`.
@@ -3928,7 +3928,7 @@ Request limits
 
 The **limits** object
 controls request handling by the app process
-and has two integer options:
+and has four integer options:
 
 .. list-table::
    :header-rows: 1
@@ -3945,6 +3945,27 @@ and has two integer options:
        this mitigates possible memory leaks
        or other cumulative issues.
 
+   * - **shm**
+     - Integer;
+       limit, in bytes,
+       on the shared memory
+       Unit uses to pass request and response bodies
+       between the router and one app process.
+
+       The default is 104857600 (100 MiB).
+
+   * - **start_timeout**
+     - Integer;
+       number of seconds Unit waits
+       for a new app process
+       to report that it is ready.
+       If the app process does not report in time,
+       Unit stops waiting for it
+       and writes the failure to the log.
+
+       The default is 0,
+       which means Unit waits indefinitely.
+
    * - **timeout**
      - Integer;
        request timeout in seconds.
@@ -3956,9 +3977,15 @@ and has two integer options:
 
        .. note::
 
-          Now, Unit doesn't detect freezes,
-          so the hanging process stays on
-          the app's process pool.
+          This option covers a request
+          that the router still tracks.
+          Unit doesn't detect freezes.
+          If an app process hangs
+          after the request is finished,
+          it stays in the app's process pool.
+          To limit how long Unit waits
+          for an app to start,
+          use **start_timeout**.
 
 Example:
 
@@ -3970,7 +3997,9 @@ Example:
        "module": "blog.wsgi",
        "limits": {
            "timeout": 10,
-           "requests": 1000
+           "start_timeout": 30,
+           "requests": 1000,
+           "shm": 104857600
        }
    }
 
@@ -4021,6 +4050,13 @@ supply a **processes** object with the following options:
         and turn idle again,
         Unit terminates extra idles
         after **idle_timeout**.
+
+        Set **"spare": 1** to keep one app process warm.
+        This works whatever **idle_timeout** is,
+        because Unit only terminates idle processes
+        above the **spare** level.
+        **"idle_timeout": 0** on its own
+        does not keep an app process warm.
 
 If **processes** is omitted entirely,
 Unit creates 1 static process.
