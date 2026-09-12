@@ -521,6 +521,11 @@ notorious **777**, instead assigning them on a need-to-know basis.
    - Exposure of configuration data.  Your app-specific settings, **.ini**
      or **.htaccess** files, and credentials are best kept hidden from
      prying eyes, and your routing configuration should reflect that.
+     Note that a **share** action serves any file it can reach as a plain
+     download, PHP scripts included; it never passes them to an application.
+     Routes that handle or reject requests for your application's code must
+     come *before* the **share**, or a file such as **settings.php** is
+     returned verbatim, credentials included.
 
    - Presence of hidden files from versioning, backups by text editors, and
      other temporary files.  Instead of carving your configuration around

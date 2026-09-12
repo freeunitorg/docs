@@ -461,7 +461,20 @@ executable with its debug version.  Use Unit's :ref:`command-line options
 
    FROM unit:|version|-minimal
 
-   CMD ["unitd","--no-daemon","--control","0.0.0.0:8080"]
+   CMD ["unitd","--no-daemon","--control","127.0.0.1:8080"]
 
 This replaces Unit's default UNIX domain control socket with an IP socket
 address.
+
+.. warning::
+
+   The control API has **no authentication over TCP**.  Unit verifies peer
+   credentials only for UNIX domain sockets; any client that can open a
+   connection to an IP control socket has full control over the instance,
+   including the ability to route requests to arbitrary applications or to
+   **share** any path on the filesystem.  The traffic is also unencrypted.
+
+   Never bind the control socket to a non-loopback address, and never publish
+   its port from a container.  Prefer a UNIX domain socket, mounted into the
+   container if it must be reached from outside; see :ref:`Security
+   <security-socket-state>`.
