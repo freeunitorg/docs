@@ -5647,6 +5647,25 @@ In turn, the **http** option exposes the following settings:
         **.webp**, **.woff2**, **.woff**, **.xml**, and
         **.zip**.
 
+        .. warning::
+
+           This table only supplies the **Content-Type** of a served file; it
+           does not decide what a **share** serves.  A **share** returns any
+           file it can reach, whatever its extension, so a route that lets one
+           reach your application's directory returns PHP scripts as source
+           text, including files such as **settings.php** with any credentials
+           they contain.  Place the **share** after the routes that handle or
+           reject **.php** requests.
+
+           The **types** option is matched against the MIME type from this
+           table, which is why **.php** being mapped here makes
+           **!application/x-httpd-php** work.  Two limits are worth knowing.
+           A **types** mismatch does not continue to the next route: it takes
+           the share's **fallback**, or returns 403.  And **types** is not
+           applied at all when the **share** path ends in a directory rather
+           than resolving to a file — the **index** file is served without
+           any MIME filtering, so a **types** exclusion cannot protect it.
+
 The **telemetry** option exposes the following settings:
 
 .. list-table::

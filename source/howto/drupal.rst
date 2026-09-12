@@ -37,7 +37,7 @@ Unit:
           "routes": [
               {
                   "match": {
-                      ":nxt_hint:`uri <Denies access to certain types of files and directories best kept hidden, allows access to well-known locations according to RFC 5785>`": [
+                      ":nxt_hint:`uri <Denies access to certain types of files and directories best kept hidden, allows access to well-known locations according to RFC 5785.  Matched case-sensitively, so these patterns only cover lowercase names>`": [
                           "!*/.well-known/*",
                           "/vendor/*",
                           "/core/profiles/demo_umami/modules/demo_umami_content/default_content/*",
@@ -98,7 +98,7 @@ Unit:
               },
               {
                   "match": {
-                      ":nxt_hint:`uri <Explicitly denies access to any PHP scripts other than index.php>`": [
+                      ":nxt_hint:`uri <Denies access to PHP scripts other than index.php.  These are globs, matched case-sensitively: *.php does not match .PHP>`": [
                           "!/index.php*",
                           "*.php"
                       ]
@@ -134,6 +134,55 @@ Unit:
               }
           }
       }
+
+   .. warning::
+
+      The order of the routes above is load-bearing.  Keep the **share**
+      action last.  A **share** serves any file it can reach, PHP scripts
+      included, as a plain download; it never hands them to the application.
+      The steps above are what keep it from reaching them: the first
+      **return: 404** hides configuration and library files, and the second
+      rejects every **.php** URI other than **/index.php**.  If you reorder
+      these steps, or add a "static files first" **share** ahead of them, a
+      request for **/sites/default/settings.php** returns the file verbatim
+      with your database password in the body.
+
+      Do not try to fix a reordered configuration with **"types":
+      ["!application/x-httpd-php"]** on the **share**.  A **types** mismatch
+      does not resume routing at the next step: it takes the share's own
+      **fallback**, which here is **applications/drupal/index**, so
+      **/core/install.php** and **/update.php** would stop reaching the
+      **direct** target.
+
+   .. warning::
+
+      The **uri** patterns above are matched **case-sensitively**, so
+      **\*.php** does not match **/sites/default/settings.PHP**.  Unit's MIME
+      lookup, by contrast, is case-insensitive, so the **share** still serves
+      that request as **application/x-httpd-php**.  On a case-insensitive
+      filesystem — APFS on macOS, Docker Desktop bind mounts, SMB/CIFS — the
+      file exists under that name and is returned in full, database password
+      included.
+
+      This is not limited to PHP.  Every pattern in a **uri** array is
+      matched the same way, so the 32-entry deny list above, which is
+      lowercase throughout, misses **/core/composer.JSON**,
+      **/WEB.CONFIG**, an uppercase **.YML** and the rest; the trailing
+      **share** then serves them.
+
+      The dependable fix is to keep the document root on a case-sensitive
+      filesystem, which is what a Linux production host gives you by
+      default.  Unit has no per-route case-insensitivity switch: closing the
+      gap in the configuration means replacing each glob with a regular
+      expression, for example ``"~(?i)\\.php$"`` in place of ``"*.php"``,
+      and doing that for one pattern only moves the exposure to the other
+      31.  Rewriting all of them is an option, but treat the caveat, not the
+      **.php** entry, as the thing to act on.
+
+      This configuration comes from the upstream Unit documentation, which is
+      archived and no longer updated, so copies of it in the wild still carry
+      the original claim that the rule denies "any PHP scripts".  See
+      `freeunit#323 <https://github.com/freeunitorg/freeunit/issues/323>`__.
 
    .. note::
 
