@@ -309,6 +309,54 @@ payload as a filename or **-** to denote stdin, as shown in the example below.
 
       $ unitctl -s '127.0.0.1:8001' -s /run/nginx-unit.control.sock execute ...
 
++++++++++++++++++++++
+Configuration formats
++++++++++++++++++++++
+
+Unitctl picks the parser from the file extension:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Extension
+     - Format
+   * - **.json**
+     - JSON
+   * - **.json5**
+     - JSON5
+   * - **.yaml**, **.yml**
+     - YAML
+   * - **.pem**
+     - PEM, for certificate uploads
+
+Input read from stdin with **-f -** is parsed as JSON.
+
+Unit itself stores and returns JSON. The other formats are a convenience in
+unitctl; it converts them before it sends the configuration.
+
+.. note::
+
+   Unitctl no longer reads hjson. Use JSON5 instead. JSON5 supports the three
+   things people used hjson for: comments, unquoted keys and trailing commas.
+
+   Rename the file to **.json5** and it works unchanged in most cases. JSON5
+   requires one thing hjson does not: every string value must be quoted.
+
+   .. code-block:: json5
+
+      {
+          // JSON5 keeps the comment
+          listeners: {
+              "127.0.0.1:8080": {
+                  pass: "routes",
+              },
+          },
+      }
+
+   A **.hjson** or **.cjson** file is now refused with a message telling you to
+   convert it. Piping hjson to stdin fails in the JSON parser instead, usually
+   at the first comment.
+
 ++++++++++++++++++++++++++
 Edit current configuration
 ++++++++++++++++++++++++++
