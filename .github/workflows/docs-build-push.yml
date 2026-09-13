@@ -134,7 +134,13 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
+      # Commenting on a pull request is scoped by the underlying resource, so
+      # the issues API endpoint used below needs "pull-requests: write" even
+      # though it is reached through github.rest.issues.  With only
+      # "issues: write" the call fails with 403 "Resource not accessible by
+      # integration" on same-repository pull requests.
       issues: write
+      pull-requests: write
     steps:
       - name: Post preview comment
         uses: actions/github-script@v8
