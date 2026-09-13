@@ -251,16 +251,20 @@ To get the current status of the Unit, run:
 
 .. code-block:: console
 
-   $ unitctl status -t yaml
+   $ unitctl status -t json-pretty
    No socket path provided - attempting to detect from running instance
-   connections:
-      accepted: 0
-      active: 0
-      idle: 0
-      closed: 0
-   requests:
-      total: 0
-   applications: {}
+   {
+     "connections": {
+       "accepted": 0,
+       "active": 0,
+       "idle": 0,
+       "closed": 0
+     },
+     "requests": {
+       "total": 0
+     },
+     "applications": {}
+   }
 
 .. note::
 
@@ -324,8 +328,6 @@ Unitctl picks the parser from the file extension:
      - JSON
    * - **.json5**
      - JSON5
-   * - **.yaml**, **.yml**
-     - YAML
    * - **.pem**
      - PEM, for certificate uploads
 
@@ -356,6 +358,36 @@ unitctl; it converts them before it sends the configuration.
    A **.hjson** or **.cjson** file is now refused with a message telling you to
    convert it. Piping hjson to stdin fails in the JSON parser instead, usually
    at the first comment.
+
+.. note::
+
+   Unitctl no longer reads or writes YAML either. A **.yaml** or **.yml** file
+   is refused with a message pointing at **yq**.
+
+   To keep working in YAML, use the **unitc** script, which is unaffected. It
+   converts in both directions and needs no flag for a **.yaml** file:
+
+   .. code-block:: console
+
+      $ unitc config.yaml /config
+      unitc: INFO: converting config.yaml to JSON
+
+   Add **--format YAML** to read the configuration back as YAML, or to edit it
+   as YAML:
+
+   .. code-block:: console
+
+      $ unitc --format YAML /config
+      $ unitc --format YAML /config EDIT
+
+   **unitc** needs **yq** installed for either direction, and says so if it is
+   missing.
+
+   For a one-off conversion without **unitc**:
+
+   .. code-block:: console
+
+      $ yq -o=json config.yaml | unitctl execute --http-method PUT --path /config -f -
 
 ++++++++++++++++++++++++++
 Edit current configuration
