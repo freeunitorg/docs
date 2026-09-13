@@ -3130,6 +3130,67 @@ the request is proxied elsewhere.
    isn't needed here to achieve this effect.
 
 
+.. _configuration-share-caching:
+
+==============================
+Conditional and range requests
+==============================
+
+*(since 1.36.2)*
+
+Unit supports HTTP conditional requests
+and byte-range requests for static files.
+
+When serving a file from a **share**,
+Unit adds validator headers to the response:
+
+- **ETag**:
+  A strong entity tag derived from the file modification time and size.
+  When content compression is applied,
+  Unit weakens the tag to ``W/"..."``.
+
+- **Last-Modified**:
+  The file modification time formatted as an HTTP date in GMT.
+
+- **Accept-Ranges**:
+  Set to ``bytes`` to advertise support for byte-range requests.
+
+If an incoming request includes conditional headers,
+Unit evaluates them before sending the response body:
+
+- **If-None-Match**:
+  If the client entity tag matches the file entity tag using weak comparison,
+  Unit returns a 304 "Not Modified" response without a body.
+
+- **If-Modified-Since**:
+  If the file was not modified after the specified date,
+  Unit returns a 304 "Not Modified" response without a body.
+
+- **If-Match**:
+  If the client entity tag does not match using strong comparison,
+  Unit returns a 412 "Precondition Failed" response.
+
+- **If-Unmodified-Since**:
+  If the file was modified after the specified date,
+  Unit returns a 412 "Precondition Failed" response.
+
+If the route sets custom **ETag** or **Last-Modified** fields in **response_headers**,
+Unit skips precondition checks to avoid comparing against overridden values.
+
+If a request contains a satisfiable **Range** header naming a single byte range,
+Unit returns a 206 "Partial Content" response with a **Content-Range** header.
+Compression is skipped for range responses.
+If the requested range lies outside the file size,
+Unit returns a 416 "Range Not Satisfiable" response.
+If a request specifies multiple ranges,
+Unit serves the full file with a 200 "OK" response.
+If the request includes an **If-Range** header,
+Unit serves the range only if the entity tag matches strongly
+or the date matches exactly.
+If the validator differs,
+Unit serves the full file.
+
+
 .. _configuration-proxy:
 
 ********
