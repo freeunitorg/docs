@@ -95,8 +95,11 @@ using Unit:
               {
                   "action": {
                       ":nxt_hint:`share <Serves matching static files>`": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
-                      ":nxt_hint:`types <Refuses to serve PHP files as source text>`": [
-                          "!application/x-httpd-php"
+                      ":nxt_hint:`types <Serves only what the share is for; an unmapped extension fails closed>`": [
+                          "image/*",
+                          "text/css",
+                          "application/javascript",
+                          "font/*"
                       ],
                       "fallback": {
                           "pass": "applications/wordpress/index"
@@ -136,17 +139,39 @@ using Unit:
       URI patterns are **case-sensitive**.  On a case-insensitive filesystem
       (macOS, Windows, a casefolded **ext4** directory) a request for
       **/WP-CONFIG.PHP** matches none of the deny steps and reaches the
-      **share**, where only **types** stops it — Unit's MIME lookup *is*
-      case-insensitive.  On those systems the **types** option is not a
-      second line of defence, it is the only one.  Note what "stops it"
-      means here: the request is not denied, it falls through to
-      **index.php** like any other unmatched URI.  Nothing leaks, but do not
-      read a 404 into it.
+      **share**.  There **types** does hold, because Unit's MIME lookup is
+      case-insensitive even though URI matching is not, so the extension
+      still resolves.  Note what "holds" means: the request is not denied,
+      it falls through to **index.php** like any other unmatched URI.
+      Nothing leaks, but do not read a 404 into it.
+
+      Do not lean on **types** further than that.  It is matched against the
+      MIME type Unit derives from the extension, and only **.php** is in the
+      built-in table — **.phtml**, **.php5**, **.inc** and **.module** are
+      not.  An extension Unit has no type for produces an empty value, and a
+      negated pattern does not exclude an empty value, so a refuse-list of
+      the **"!application/x-httpd-php"** shape serves every one of them as
+      source.  The allow-list above fails closed instead: an extension Unit
+      has never heard of does not match, so it is not served.  In the
+      trailing position the **fallback** is what you want for anything that
+      is not static.
 
       The **wp-content** step matters just as much.  Without it, the
       **\*.php** step below runs *any* PHP file under the document root,
       including anything written into **wp-content/uploads/** by a plugin, a
       theme, or an attacker who reached the media library.
+
+      One gap no **types** rule closes: **types** is not applied when the
+      share path resolves to a **directory**.  Unit then takes the filename
+      from the share's own **index** option and serves it without testing
+      its type, so a share carrying **"index": "index.php"** — a common
+      addition to a WordPress configuration — answers a request for a
+      directory with the *source* of that **index.php**.  Measured on
+      1.36.x: **/sub/index.php** is refused by the allow-list while
+      **/sub/** returns 200 with the file's contents and a
+      **Content-Type: application/x-httpd-php** header.  The configuration
+      above does not set **index** on the share and so is not affected;
+      leave it unset, and let the route table decide what reaches PHP.
 
    .. note::
 
