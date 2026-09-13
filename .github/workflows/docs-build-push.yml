@@ -124,11 +124,30 @@ jobs:
         uses: actions/deploy-pages@v4
 
   pr-comment:
-    needs: build
-    # Skip on PRs from forks: their GITHUB_TOKEN is read-only, so the
-    # createComment call below 403s ("Resource not accessible by integration").
+    needs: [build, deploy]
+    # Only claim a preview that was actually published.
+    #
+    # "deploy" is gated on the prod environment or the auto-deploy branch, so
+    # it never runs for a pull request: the build uploads a pages artifact and
+    # nothing publishes it.  This job used to post regardless, so every
+    # "Deploy Preview" link it left on a pull request was a 404 -- verified
+    # against https://docs.freeunit.org/previews/docs/, which does not exist.
+    # Depending on "deploy" means this job is skipped instead, and starts
+    # working by itself if previews are ever genuinely published.
+    #
+    # Publishing pull-request builds to docs.freeunit.org is NOT the way to
+    # make it work.  A .rst may carry a "raw:: html" block -- the directive is
+    # standard and not disabled here, and the tree already uses it -- so that
+    # would execute a contributor's JavaScript on the production docs origin,
+    # reachable from a fork by anyone.  A preview host has to be a separate
+    # origin, noindex'd, and never fed from a fork.
+    #
+    # Forks are skipped for a second reason: their GITHUB_TOKEN is read-only,
+    # so the createComment call below 403s ("Resource not accessible by
+    # integration").
     if: >-
-      (github.event.action == 'opened' || github.event.action == 'synchronize')
+      needs.deploy.result == 'success'
+      && (github.event.action == 'opened' || github.event.action == 'synchronize')
       && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     env:
