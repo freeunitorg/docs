@@ -37,7 +37,7 @@ Unit:
           "routes": [
               {
                   "match": {
-                      ":nxt_hint:`uri <Denies access to certain types of files and directories best kept hidden, allows access to well-known locations according to RFC 5785.  Matched case-sensitively, so these patterns only cover lowercase names>`": [
+                      ":nxt_hint:`uri <Denies access to certain types of files and directories best kept hidden, allows access to well-known locations according to RFC 5785.  Matched case-sensitively: the lowercase patterns do not cover uppercase names, and the five capitalised CVS entries do not cover lowercase ones>`": [
                           "!*/.well-known/*",
                           "/vendor/*",
                           "/core/profiles/demo_umami/modules/demo_umami_content/default_content/*",
@@ -137,7 +137,7 @@ Unit:
 
    .. warning::
 
-      The order of the routes above is load-bearing.  Keep the **share**
+      The order of these routes matters.  Keep the **share**
       action last.  A **share** serves any file it can reach, PHP scripts
       included, as a plain download; it never hands them to the application.
       The steps above are what keep it from reaching them: the first
@@ -154,6 +154,50 @@ Unit:
       **/core/install.php** and **/update.php** would stop reaching the
       **direct** target.
 
+      That exclusion also does less than it appears to.  It is matched against
+      the MIME type Unit looks up from the file's extension, and an extension
+      the table does not know produces no type at all, which no
+      **application/x-httpd-php** pattern excludes.  **.php5**, **.phtml** and
+      **.phps** are all served as source by a share that refuses **.php** --
+      the last of those being one an administrator may place deliberately,
+      expecting a source-highlighting handler.
+
+      Drupal's PHP also lives in **.module**, **.inc**, **.install**,
+      **.theme** and **.profile** files, and none of those is in the table
+      either.  In the configuration above they are denied by the first
+      **return: 404** step, on the URI.  That is the step doing the work, not
+      **types** -- so a configuration that drops the deny list and relies on
+      **types** instead serves all five as source.
+
+      A bare **"!"** alongside it denies the empty type and closes that half:
+      an empty pattern matches only a file whose extension is not in the
+      table, so **text/css** and the rest are still served.  Measured on
+      1.36.x: with **["!application/x-httpd-php"]** a **.phtml** file is
+      served 200; with **["!application/x-httpd-php", "!"]** it is 404, and
+      **.css** and **.png** are unchanged.
+
+      It does nothing for the directory form.  With **index** set, the same
+      two patterns still serve the index file's source for a request ending
+      in **/**, because that path never reaches the **types** test at all.
+      An allow-list behaves identically here.  Neither is a substitute for
+      keeping the **share** last.
+
+      If you want **types** on the trailing **share** as a safety net, write
+      it as an allow-list of what the share is *for*, not as a list of what to
+      refuse::
+
+          "types": ["image/*", "text/css", "application/javascript", "font/*"]
+
+      Add the types your own site serves -- **application/json**,
+      **text/plain**, the XML types, **application/pdf**, **video/**\* and so
+      on -- because an allow-list fails closed: a type you leave out is not
+      served, it takes the share's **fallback**.  In the last position the **fallback**
+      consequence above is what you want rather than a problem — a request
+      that is not static takes **applications/drupal/index**, which is where
+      a non-static path belongs.  This does not replace the route order; the
+      **return: 404** steps are still what keep the share from reaching
+      **settings.php** at all.
+
    .. warning::
 
       The **uri** patterns above are matched **case-sensitively**, so
@@ -165,10 +209,13 @@ Unit:
       included.
 
       This is not limited to PHP.  Every pattern in a **uri** array is
-      matched the same way, so the 32-entry deny list above, which is
-      lowercase throughout, misses **/core/composer.JSON**,
-      **/WEB.CONFIG**, an uppercase **.YML** and the rest; the trailing
-      **share** then serves them.
+      matched the same way, so the deny list above misses
+      **/core/composer.JSON**, **/WEB.CONFIG**, an uppercase **.YML** and the
+      rest; the trailing **share** then serves them.  The list is not
+      uniformly lowercase either: **\*/Entries\***, **\*/Repository**,
+      **\*/Root**, **\*/Tag** and **\*/Template** are capitalised, and
+      those five match only that exact spelling — a lowercase **/cvs/root**
+      is not denied.
 
       The dependable fix is to keep the document root on a case-sensitive
       filesystem, which is what a Linux production host gives you by

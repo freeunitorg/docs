@@ -5688,14 +5688,23 @@ In turn, the **http** option exposes the following settings:
            This table only supplies the **Content-Type** of a served file; it
            does not decide what a **share** serves.  A **share** returns any
            file it can reach, whatever its extension, so a route that lets one
-           reach your application's directory returns PHP scripts as source
-           text, including files such as **settings.php** with any credentials
-           they contain.  Place the **share** after the routes that handle or
+           reach your application's directory returns PHP scripts as source,
+           including files such as **settings.php** with any credentials they
+           contain.  It labels them too: the response carries
+           **Content-Type: application/x-httpd-php**, so nothing about it
+           presents as plain text.  Place the **share** after the routes that handle or
            reject **.php** requests.
 
            The **types** option is matched against the MIME type from this
            table, which is why **.php** being mapped here makes
-           **!application/x-httpd-php** work.  Two limits are worth knowing.
+           **!application/x-httpd-php** work.  Three limits are worth
+           knowing.  An extension that is not in the table produces no MIME
+           type, and **!application/x-httpd-php** does not exclude an empty
+           type, so that pattern alone covers only the extensions listed
+           above: **.phtml**, **.php5** and **.phps** are served as source by
+           a share that refuses **.php**.  Add a bare **"!"** to deny the
+           empty type as well — it matches only a file whose extension is not
+           in the table, so **text/css** and the rest are unaffected.
            A **types** mismatch does not continue to the next route: it takes
            the share's **fallback**, or returns 403.  And **types** is not
            applied at all when the **share** path ends in a directory rather
