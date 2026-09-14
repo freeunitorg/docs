@@ -99,7 +99,7 @@ platform using Unit:
                           "uri": "/robots.txt"
                       },
                       "action": {
-                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri"
+                          "share": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri"
                       }
                   },
 
@@ -124,7 +124,7 @@ platform using Unit:
                           ]
                       },
                       "action": {
-                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "share": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
                           "fallback": {
                               "return": 404
                           }
@@ -264,7 +264,7 @@ platform using Unit:
                           ]
                       },
                       "action": {
-                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "share": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
                           "fallback": {
                               "pass": "applications/nextcloud/index",
                               "response_headers": {
@@ -293,7 +293,7 @@ platform using Unit:
                           ]
                       },
                       "action": {
-                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "share": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
                           "fallback": {
                               "pass": "applications/nextcloud/index"
                           },
@@ -305,7 +305,7 @@ platform using Unit:
 
                   {
                       "action": {
-                          "share": ": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
+                          "share": ":nxt_ph:`/path/to/app <Path to the application directory; use a real path in your configuration>`$uri",
                           "fallback": {
                               "pass": "applications/nextcloud/index",
                               "response_headers": {
