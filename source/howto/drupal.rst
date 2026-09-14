@@ -113,6 +113,9 @@ Unit:
               {
                   "action": {
                       ":nxt_hint:`share <Serves static files>`": ":nxt_ph:`/path/to/app/web <Path to the web/ directory; use a real path in your configuration>`$uri",
+                      ":nxt_hint:`response_headers <Replaces the ExpiresDefault rule in .htaccess; applies to files the share serves, not to index.php>`": {
+                          "Cache-Control": "max-age=31536000"
+                      },
                       "fallback": {
                           "pass": ":nxt_hint:`applications/drupal/index <Funnels all requests to index.php>`"
                       }
@@ -187,6 +190,15 @@ Unit:
       the original claim that the rule denies "any PHP scripts".  See
       `freeunit#323 <https://github.com/freeunitorg/freeunit/issues/323>`__.
 
+   Unit does not read **.htaccess**.  The **response_headers** option on the
+   **share** action above replaces its **ExpiresDefault "access plus 1 year"**
+   rule.  Without it, a site moved from Apache serves every static file
+   without **Cache-Control**, and the one-year cache time is lost.  The option
+   applies only to the files the **share** serves.  A request that takes the
+   **fallback** is handled by the **fallback** action, so responses from
+   **index.php** do not get the header, which matches the **ExpiresActive
+   Off** rule for **.php** files in **.htaccess**.
+
    .. note::
 
       The difference between the **pass** targets is their usage of
@@ -232,9 +244,18 @@ already has its response.
 What this means on Unit
 =======================
 
+.. note::
+
+   Unit 1.37.0 fixes this (`freeunit#405
+   <https://github.com/freeunitorg/freeunit/pull/405>`__).  The process now
+   tells the router that it is still running after
+   **fastcgi_finish_request()**.  The router counts it as busy until the job
+   ends, so it counts against **processes.max** and the idle reaper does not
+   stop it.  The rest of this section describes 1.36.1 and earlier.
+
 Unit's PHP module implements **fastcgi_finish_request()**.  When PHP calls it,
 the module tells the router that the request is complete, and PHP goes on
-running.  Two things follow.  Both were observed:
+running.  Up to 1.36.1, two things follow.  Both were observed:
 
 - The router counts the process as idle, so **processes.max** reports more
   capacity than you really have.
@@ -247,7 +268,7 @@ The job itself still finishes, because Unit cannot interrupt a PHP script.  But
 a request that is already queued to that process can end up with no process to
 serve it, and Unit starts no replacement.  This was observed, not derived: in
 one measurement such a request ran about 300 seconds later, when other traffic
-started the application again.  It is tracked as `issue #321
+started the application again.  It was tracked as `issue #321
 <https://github.com/freeunitorg/freeunit/issues/321>`__, which also records the
 conditions of that measurement.
 
@@ -278,10 +299,28 @@ the request:
 Run this from a systemd timer or from system cron.  Handle queues the same way,
 with **drush queue:run**.
 
+Opcache and idle processes
+==========================
+
+A common recommendation for PHP-FPM says to keep one process alive, because
+the opcache is lost when the last process exits.  That does not apply to Unit.
+The PHP module starts PHP in the application prototype
+(**nxt_php_setup()** in **src/nxt_php_sapi.c**), and Unit forks every process
+from that prototype.  The opcache shared memory belongs to the prototype, and
+the idle reaper never removes the prototype, so the cache survives a process
+exiting.  A configuration change that touches the application replaces the
+prototype, and the opcache then starts cold.
+
+So **"idle_timeout": 0** or **"spare": 1** is not needed to keep the opcache
+warm.  This says nothing else about **spare**.  **"spare": 0** keeps no
+process resident.  On 1.36.1 and earlier, **"spare": 0** with terminate-phase
+work also has the risk that `What this means on Unit`_ describes.
+
 If cron must stay in-request
 ============================
 
-Two settings make the problem smaller:
+On 1.36.1 and earlier, two settings make the problem smaller.  From 1.37.0
+on, they are not needed for this problem:
 
 - **"spare": 1** keeps one process warm.  The idle reaper then never looks at
   the last idle process.
@@ -297,8 +336,13 @@ lines such as::
    [alert] sendmsg(...) failed (32: Broken pipe)
 
 This is the prototype writing to a spare process that has already exited.  The
-processes still exit 0 and no request is affected, so nothing breaks, but these
-lines can trigger log-based alerts.
+processes still exit 0 and no request is affected, so nothing breaks.  Up to
+1.36.1 the line is logged at **alert** level, so it can trigger log-based
+alerts.  In a run before 1.37.0 over a sample of three configuration changes,
+**"spare": 1** produced such lines and **"spare": 0** produced none.  From
+1.37.0 on, a **QUIT** that fails because the process already exited is logged
+at **info** level (`freeunit#440
+<https://github.com/freeunitorg/freeunit/pull/440>`__).
 
 Bounding a job
 ==============
