@@ -24,6 +24,8 @@ To run the `MODX <https://modx.com>`_ content application platform using Unit:
    **.htaccess** scheme in a |app| installation roughly translates into the
    following:
 
+   .. include:: ../include/howto_php_share_types.rst
+
    .. code-block:: json
 
       {

@@ -5804,10 +5804,16 @@ In turn, the **http** option exposes the following settings:
            empty type as well — it matches only a file whose extension is not
            in the table, so **text/css** and the rest are unaffected.
            A **types** mismatch does not continue to the next route: it takes
-           the share's **fallback**, or returns 403.  And **types** is not
-           applied at all when the **share** path ends in a directory rather
-           than resolving to a file — the **index** file is served without
-           any MIME filtering, so a **types** exclusion cannot protect it.
+           the share's **fallback**, or returns 403.
+           Measured on 1.36.1: with **["!application/x-httpd-php"]** a
+           **.phtml** file is served with 200; with
+           **["!application/x-httpd-php", "!"]** the request is refused
+           and takes the share's **fallback**, which returned 404 in that
+           measurement; **.css** and **.png** are served in both cases.
+           And **types** is not applied at all when the **share** path ends
+           in a directory rather than resolving to a file — the **index**
+           file is served without any MIME filtering, so a **types**
+           exclusion cannot protect it.
 
 The **telemetry** option exposes the following settings:
 

@@ -42,6 +42,8 @@ platform using Unit:
    based on NextCloud's own `guide
    <https://docs.nextcloud.com/server/latest/admin_manual/installation/nginx.html>`_:
 
+   .. include:: ../include/howto_php_share_types.rst
+
    .. code-block:: json
 
       {

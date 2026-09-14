@@ -39,6 +39,8 @@ using Unit:
 #. Next, prepare the app :ref:`configuration <configuration-php>` for Unit (use
    real values for **share** and **root**):
 
+   .. include:: ../include/howto_php_share_types.rst
+
    .. code-block:: json
 
       {
