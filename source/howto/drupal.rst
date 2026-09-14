@@ -113,6 +113,9 @@ Unit:
               {
                   "action": {
                       ":nxt_hint:`share <Serves static files>`": ":nxt_ph:`/path/to/app/web <Path to the web/ directory; use a real path in your configuration>`$uri",
+                      ":nxt_hint:`response_headers <Replaces the ExpiresDefault rule in .htaccess; applies to files the share serves, not to index.php>`": {
+                          "Cache-Control": "max-age=31536000"
+                      },
                       "fallback": {
                           "pass": ":nxt_hint:`applications/drupal/index <Funnels all requests to index.php>`"
                       }
@@ -185,6 +188,15 @@ Unit:
       archived and no longer updated, so copies of it in the wild still carry
       the original claim that the rule denies "any PHP scripts".  See
       `freeunit#323 <https://github.com/freeunitorg/freeunit/issues/323>`__.
+
+   Unit does not read **.htaccess**.  The **response_headers** option on the
+   **share** action above replaces its **ExpiresDefault "access plus 1 year"**
+   rule.  Without it, a site moved from Apache serves every static file
+   without **Cache-Control**, and the one-year cache time is lost.  The option
+   applies only to the files the **share** serves.  A request that takes the
+   **fallback** is handled by the **fallback** action, so responses from
+   **index.php** do not get the header, which matches the **ExpiresActive
+   Off** rule for **.php** files in **.htaccess**.
 
    .. note::
 
@@ -277,6 +289,27 @@ the request:
 Run this from a systemd timer or from system cron.  Handle queues the same way,
 with **drush queue:run**.
 
+Opcache and idle processes
+==========================
+
+A common recommendation for PHP-FPM says to keep one process alive, because
+the opcache is lost when the last process exits.  That does not apply to Unit.
+The PHP module starts PHP in the application prototype
+(**nxt_php_setup()** in **src/nxt_php_sapi.c**), and Unit forks every process
+from that prototype.  The opcache shared memory belongs to the prototype, and
+the idle reaper never removes the prototype, so the cache survives a process
+exiting.  A configuration change that touches the application replaces the
+prototype, and the opcache then starts cold.
+
+So **"idle_timeout": 0** or **"spare": 1** is not needed to keep the opcache
+warm.  This says nothing else about **spare**.
+**"spare": 0** keeps no process resident.  With terminate-phase work,
+**"spare": 0** also has a risk: the router counts the process as idle from
+**fastcgi_finish_request()** on, so at **idle_timeout** the only process can
+receive **QUIT** while a job still runs (see `issue #321
+<https://github.com/freeunitorg/freeunit/issues/321>`__, open at the time of
+writing).
+
 If cron must stay in-request
 ============================
 
@@ -296,8 +329,11 @@ lines such as::
    [alert] sendmsg(...) failed (32: Broken pipe)
 
 This is the prototype writing to a spare process that has already exited.  The
-processes still exit 0 and no request is affected, so nothing breaks, but these
-lines can trigger log-based alerts.
+processes still exit 0 and no request is affected, so nothing breaks, but the
+line is logged at **alert** level, so these lines can trigger log-based alerts.
+Whether they do depends on the alert rule.  In a run on 1.36.x over a sample of
+three configuration changes, **"spare": 1** produced such lines and
+**"spare": 0** produced none.
 
 Bounding a job
 ==============
