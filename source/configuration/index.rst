@@ -3155,6 +3155,43 @@ Unit adds validator headers to the response:
 - **Accept-Ranges**:
   Set to ``bytes`` to advertise support for byte-range requests.
 
+.. note::
+
+   Both validators are derived from the file's modification time
+   and its size.
+   Modern filesystems record that time to sub-second precision,
+   but Unit reads only its whole-second part.
+   A file rewritten **to the same size within the same second**
+   as its previous write therefore keeps the same **ETag**
+   and the same **Last-Modified**.
+   Unit cannot tell the two versions apart,
+   and a client revalidating in that window is told the file is
+   unchanged and keeps the older copy.
+
+   The window is narrow.
+   The exposure is to files rewritten in place:
+   a build loop regenerating assets,
+   or an edit that preserves the file's length.
+
+   Writing a new file and renaming it into place does not by itself
+   avoid the window.
+   A rename does not change the modification time:
+   the replacement keeps the time it was written,
+   so if it was written in the same second as the file it replaces,
+   and is the same size,
+   the validators still collide.
+   What closes the window is the replacement's own timestamp
+   falling in a later second,
+   which is usual but not guaranteed.
+   If you need certainty, make the deployment observable:
+   change the size, or give the file a distinct path or query.
+
+   Raising the resolution of **ETag** would not close the window for
+   **Last-Modified**: an HTTP date has no sub-second field,
+   so **If-Modified-Since** and the date form of **If-Range**
+   compare whole seconds however precisely the file is timestamped.
+   Unit derives both validators the same way :program:`nginx` does.
+
 If an incoming request includes conditional headers,
 Unit evaluates them before sending the response body:
 
