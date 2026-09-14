@@ -57,6 +57,7 @@ To run the `Roundcube <https://roundcube.net>`_ webmail platform using Unit:
                   "root": ":nxt_ph:`/path/to/app/ <Path to the application directory; use a real path in your configuration>`"
               }
           }
+      }
 
 #. .. include:: ../include/howto_upload_config.rst
 
