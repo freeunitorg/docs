@@ -579,6 +579,18 @@ notorious **777**, instead assigning them on a need-to-know basis.
              }
          }
 
+   The **types** allow-list stops the **share** from serving a request that
+   reaches it with the wrong MIME type. Unit's MIME lookup is
+   case-insensitive, so a request such as **SETTINGS.PHP** still resolves
+   to the PHP MIME type and fails the allow-list above, even though the
+   **match** step is case-sensitive and only screens URIs ending in
+   **.php**. In this configuration that request does not get a 403: the
+   **share** action has a **fallback**, so the request goes to
+   **applications/app/index** instead. Configure a **fallback** only when
+   the app is safe to receive requests that fail the **types** check;
+   otherwise leave it out so a mismatch returns 403. See :ref:`MIME
+   filtering <configuration-share-mime>` for the full **types** syntax.
+
    However, this does not replace the need to set up file permissions; use both
    :ref:`matching rules <configuration-routes-matching>` and per-app user
    permissions to manage access.  For more info and real-life examples, refer
