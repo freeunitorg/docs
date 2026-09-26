@@ -401,6 +401,29 @@ or support for certain features:
 
        For details of TLS configuration in Unit, see :ref:`configuration-ssl`.
 
+   * - **--tests**
+     - Builds Unit's C test programs, such as :file:`build/tests`.  It
+       does not change :program:`unitd`, **libunit.a**, or the language
+       modules.  They build from the same object files with or without
+       **--tests**.
+
+   * - **--hardening=off|default|strict**
+     - Turns on compiler and linker hardening.  The default is **off**.
+       A build that does not pass this option does not change.
+
+       **default** adds the stack protector, **_FORTIFY_SOURCE=3** (or
+       **2** where the compiler refuses 3), stack-clash protection, and
+       control-flow protection.  At link time it adds RELRO, BIND_NOW,
+       and noexecstack.
+
+       **strict** also adds **-Wformat=2**, **-Wvla**,
+       **-Wimplicit-fallthrough**, and
+       **-ftrivial-auto-var-init=pattern**.
+
+       :program:`./configure` probes each flag.  A compiler that does
+       not support a flag only loses that flag.  To build a hardened
+       :program:`unitd` for a package, pass **--hardening=default**.
+
 
 .. _source-config-src-pcre:
 
@@ -439,6 +462,35 @@ For example, if you cloned the :program:`njs` repo beside the Unit repo:
                  --cc-opt="-I../njs/src/ -I../njs/build/"  \
                  --ld-opt="-L../njs/build/"  \
                  ...
+
+.. _source-config-src-tests:
+
+Unit's C code carries a few test hooks.  A test hook is a branch or a
+counter that an internal macro guards, compiled in only for the C test
+suite.  With **--tests**, :command:`make` compiles these hooks into the
+test programs only.  The hooks never reach :program:`unitd`,
+**libunit.a**, or a language module, with or without **--tests**.
+
+To build and run the C test suite:
+
+.. code-block:: console
+
+   $ ./configure --tests --openssl
+   $ make
+   $ make build/lib/libunit.a
+   $ make tests
+   $ ./build/tests
+
+If you package Unit, run this script after :command:`make tests` to
+confirm that the built :program:`unitd`, **libunit.a**, and modules
+carry no test hook:
+
+.. code-block:: console
+
+   $ .github/scripts/check-test-hooks.sh
+
+The script exits with an error if it finds a test hook in a shipped
+binary.
 
 The next option group customizes Unit's runtime :ref:`directory
 structure <source-dir>`:
