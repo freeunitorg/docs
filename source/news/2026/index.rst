@@ -7,6 +7,17 @@ News archive for the year 2026.
 
 .. nxt_news_entry::
    :author: FreeUnit Team
+   :description: Byte-range and conditional requests for static files;
+                 certificate replacement without a restart; hardening of the
+                 messages between Unit's processes; Accept-Encoding
+                 negotiation fixes; a --hardening configure option.
+   :email: team@freeunit.org
+   :title: Unit 1.37.0 Released
+   :url: news/2026/unit-1.37.0-released
+   :date: 2026-10-01
+
+.. nxt_news_entry::
+   :author: FreeUnit Team
    :description: Peer-message hardening across the port protocol; chunked
                  trailers and response-length correctness; OpenTelemetry
                  export health in /status and a leaner traced request path;
