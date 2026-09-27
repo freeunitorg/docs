@@ -19,6 +19,8 @@ documentation platform using Unit:
 #. Next, :ref:`prepare <configuration-php>` the |app| configuration for Unit
    (use real values for **share** and **root**):
 
+   .. include:: ../include/howto_php_share_types.rst
+
    .. code-block:: json
 
       {

@@ -32,6 +32,8 @@ using Unit:
 #. Next, :ref:`prepare <configuration-php>` the |app| configuration for Unit
    (use real values for **share** and **root**):
 
+   .. include:: ../include/howto_php_share_types.rst
+
    .. code-block:: json
 
       {
@@ -127,34 +129,14 @@ using Unit:
 
    .. warning::
 
-      The order of the routes above is load-bearing.  The steps that return
-      404 must stay *before* the **share** action: **.php** is a known
-      :ref:`MIME type <configuration-share-mime>`, so a **share** that is
-      allowed to serve PHP files emits them as source text instead of running
-      them.  Reorder these steps, or add a "static files first" **share**
-      ahead of them, and a request for **/wp-config.php** hands the client
-      your database password — unless the **types** option is there to refuse
-      it.  Keep both: the ordering and the **types** guard.
-
-      URI patterns are **case-sensitive**.  On a case-insensitive filesystem
-      (macOS, Windows, a casefolded **ext4** directory) a request for
-      **/WP-CONFIG.PHP** matches none of the deny steps and reaches the
-      **share**.  There **types** does hold, because Unit's MIME lookup is
-      case-insensitive even though URI matching is not, so the extension
-      still resolves.  Note what "holds" means: the request is not denied,
-      it falls through to **index.php** like any other unmatched URI.
-      Nothing leaks, but do not read a 404 into it.
-
-      Do not lean on **types** further than that.  It is matched against the
-      MIME type Unit derives from the extension, and only **.php** is in the
-      built-in table — **.phtml**, **.php5**, **.inc** and **.module** are
-      not.  An extension Unit has no type for produces an empty value, and a
-      negated pattern does not exclude an empty value, so a refuse-list of
-      the **"!application/x-httpd-php"** shape serves every one of them as
-      source.  The allow-list above fails closed instead: an extension Unit
-      has never heard of does not match, so it is not served.  In the
-      trailing position the **fallback** is what you want for anything that
-      is not static.
+      The order of the routes above matters.  The steps that return 404
+      must stay *before* the **share** action.  Reorder these steps, or add
+      a "static files first" **share** ahead of them, and a request for
+      **/wp-config.php** hands the client your database password -- unless
+      the **types** option is there to refuse it.  Keep both: the ordering
+      and the **types** guard.  A request the list refuses is not denied; it
+      takes the **fallback** to **index.php** like any other unmatched URI.
+      Do not read a 404 into it.
 
       The **wp-content** step matters just as much.  Without it, the
       **\*.php** step below runs *any* PHP file under the document root,
