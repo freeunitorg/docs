@@ -3136,7 +3136,7 @@ the request is proxied elsewhere.
 Conditional and range requests
 ==============================
 
-*(since 1.36.2)*
+*(since 1.37.0)*
 
 Unit supports HTTP conditional requests
 and byte-range requests for static files.
