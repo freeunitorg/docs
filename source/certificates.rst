@@ -66,6 +66,8 @@ under a suitable name
 Replacing a bundle
 ******************
 
+*(since 1.37.0)*
+
 A **PUT** on a name that already exists replaces the bundle in place.
 Unit writes the new bundle to a temporary file and renames it over the
 old one. A crash never leaves a partial bundle on disk.
@@ -79,6 +81,10 @@ restart the application processes.
 If no listener uses the name yet, Unit answers with
 ``"success": "Certificate chain uploaded."``, the same as for the
 first upload.
+
+If an upload carries the same certificates as the stored bundle, Unit
+does not rewrite the file and does not reconfigure the listeners. The
+response is the same as for a successful upload or update.
 
 A bundle is one **PEM** body. It holds the server certificate, its
 certificate chain, and the private key. Usually the server certificate
@@ -99,7 +105,8 @@ where the private key comes first. Unit rejects a bundle larger than
         invalid. Unit keeps the old bundle.
 
     * - ``400`` **Invalid certificate name.**
-      - The name starts with a dot, or contains a slash.
+      - The name starts with a dot, contains a slash, or is longer
+        than 255 bytes.
 
     * - ``413`` **Certificate bundle is too large.**
       - The bundle is larger than 1 MiB.
@@ -131,6 +138,7 @@ as **GET**-table JSON using **/certificates**:
        "certificates": {
            ":nxt_ph:`bundle <Certificate bundle name>`": {
                "key": "RSA (4096 bits)",
+               "fingerprint": "5F:0A:3E:8B:1C:27:9D:44:B6:E1:72:C8:0D:35:9A:F4:6B:E8:21:7C:D3:90:4E:AB:15:66:F2:8D:3C:71:B9:02",
                "chain": [
                    {
                        "subject": {
@@ -184,9 +192,16 @@ as **GET**-table JSON using **/certificates**:
 
 .. note::
 
-   Access array items,
-   such as individual certificates in a chain,
-   and their properties by indexing, running the following commands as root:
+   Query individual properties directly, such as the server
+   certificate's SHA-256 fingerprint *(since 1.37.0)* or a certificate
+   in the chain, running the following commands as root:
+
+   .. code-block:: console
+
+      # curl -X GET --unix-socket :nxt_ph:`/path/to/control.unit.sock <Path to Unit's control socket in your installation>` \
+             http://localhost/certificates/:nxt_hint:`bundle <Certificate bundle name>`/fingerprint
+
+          "5F:0A:3E:8B:1C:27:9D:44:B6:E1:72:C8:0D:35:9A:F4:6B:E8:21:7C:D3:90:4E:AB:15:66:F2:8D:3C:71:B9:02"
 
    .. code-block:: console
 
@@ -197,6 +212,10 @@ as **GET**-table JSON using **/certificates**:
 
       # curl -X GET --unix-socket :nxt_ph:`/path/to/control.unit.sock <Path to Unit's control socket in your installation>` \
              http://localhost/certificates/:nxt_hint:`bundle <Certificate bundle name>`/chain/0/subject/alt_names/0/
+
+   The fingerprint format matches ``openssl x509 -fingerprint -sha256``:
+   uppercase hexadecimal bytes with colons. A script can compare this
+   value with a renewed certificate file to upload only when changed.
 
 Next, add the uploaded bundle to a
 :ref:`listener <configuration-listeners>`;
