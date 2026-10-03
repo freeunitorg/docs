@@ -5649,6 +5649,16 @@ In turn, the **http** option exposes the following settings:
     * - Option
       - Description
 
+    * - **body_min_rate**
+      - Minimum transfer rate, in bytes per second,
+        of the request body from the client.
+        If the client is slower, Unit returns a 408 "Request Timeout" response
+        and closes the connection; see :ref:`configuration-min-rate`.
+
+        The default is 0, which disables the check.
+
+        *(since 1.37.0)*
+
     * - **body_read_timeout**
       - Maximum number of seconds
         to read data from the body
@@ -5715,6 +5725,16 @@ In turn, the **http** option exposes the following settings:
         and closes the connection.
 
         The default is 8388608 (8 MB).
+
+    * - **send_min_rate**
+      - Minimum transfer rate, in bytes per second,
+        at which the client reads the response.
+        If the client is slower, Unit closes the connection;
+        see :ref:`configuration-min-rate`.
+
+        The default is 0, which disables the check.
+
+        *(since 1.37.0)*
 
     * - **send_timeout**
       - Maximum number of seconds
@@ -5867,6 +5887,84 @@ Example:
             "sampling_ratio": 1.0
         }
     },
+
+.. _configuration-min-rate:
+
+======================
+Minimum transfer rates
+======================
+
+*(since 1.37.0)*
+
+The **body_read_timeout** and **send_timeout** options limit the time
+between two reads or two writes, not the time of the full transfer.
+So a slow client that sends or reads one byte before each timeout
+can keep a connection open without a time limit.
+The **body_min_rate** and **send_min_rate** options stop such a client
+in the request body ("slow POST") and in the response ("slow read").
+Each option takes an integer from 0 to 2147483647.
+
+Unit measures the rate in windows.
+A window lasts at least one grace period:
+**body_read_timeout** for the body, **send_timeout** for the response.
+If this timeout is 0, each window ends at the next read or write.
+After the grace period, Unit checks the window when it reads or writes data.
+The check fails if the window has fewer bytes
+than the minimum transfer rate multiplied by the window length in seconds.
+Otherwise, a new window starts.
+
+For the request body:
+
+- Unit counts all bytes that it receives while it reads the body.
+  With a chunked body, the count includes the chunk framing.
+- Unit does not count the request header,
+  or the body bytes that arrive in the same read as the header.
+- The first window starts when Unit starts to read the body.
+  With **Expect: 100-continue**, it starts when Unit has sent **100 Continue**.
+- Unit does not check the read that completes the body.
+  That read must arrive within **body_read_timeout** of the read before it.
+- On a failed check, Unit logs an **info** message that starts with
+  ``client body rate is less than body_min_rate``,
+  returns a 408 "Request Timeout" response, and closes the connection.
+
+For the response:
+
+- Unit counts the bytes that the kernel accepts into the socket send buffer.
+- Unit counts the time only while it has response data to send,
+  not while it waits for the application or a proxied server.
+- Unit checks the rate after each write,
+  including a write that sends all the queued response data.
+- On a failed check, Unit logs an **info** message that starts with
+  ``client send rate is less than send_min_rate``
+  and closes the connection.
+- If the check fails after the last write of a response,
+  the client still gets the full response.
+  Unit does not keep the connection alive for the next request.
+- A **send_min_rate** above the download rate of a legitimate slow client
+  also stops that client.
+
+The minimum transfer rates add to the timeouts and do not replace them.
+If a client stops completely, there is no data to check,
+and **body_read_timeout** or **send_timeout** applies.
+
+The minimum transfer rates apply to the request body and the response
+of an HTTP/1 connection.
+They do not apply to the request header.
+A slowloris attack sends the header slowly,
+and **header_read_timeout** limits the time to read it.
+They also do not apply to WebSocket connections
+or to the connections from Unit to a proxied server.
+
+Example:
+
+.. code-block:: json
+
+   "settings": {
+       "http": {
+           "body_min_rate": 256,
+           "send_min_rate": 16384
+       }
+   }
 
 .. _configuration-access-log:
 
