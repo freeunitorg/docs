@@ -89,6 +89,7 @@ Unit:
                           "/core/modules/statistics/statistics.php",
                           "~^/core/modules/system/tests/https?\\.php",
                           "/core/rebuild.php",
+                          "/index.php*",
                           "/update.php",
                           "/update.php/*"
                       ]
@@ -145,10 +146,14 @@ Unit:
       The order of these routes matters.  Keep the **share** action last.
       The steps above are what keep PHP files from reaching it: the first
       **return: 404** hides configuration and library files, and the second
-      rejects every **.php** URI other than **/index.php**.  If you reorder
-      these steps, or add a "static files first" **share** ahead of them, a
-      request for **/sites/default/settings.php** returns the file verbatim
-      with your database password in the body.
+      rejects every **.php** URI other than **/index.php**.  The
+      **/index.php\*** entry of the **direct** step runs the bare path and
+      its PATH_INFO forms as PHP.  Without that entry the request reaches
+      the **share** instead: the share refuses a PHP file when it has a
+      **types** allow-list and returns the source when it has none.  If you
+      reorder these steps, or add a "static files first" **share** ahead of
+      them, a request for **/sites/default/settings.php** returns the file
+      verbatim with your database password in the body.
 
       Drupal's PHP also lives in **.module**, **.inc**, **.install**,
       **.theme** and **.profile** files.  In the configuration above the
