@@ -81,7 +81,7 @@ Unit:
               },
               {
                   "match": {
-                      ":nxt_hint:`uri <Allows direct access to core PHP scripts>`": [
+                      ":nxt_hint:`uri <Runs index.php and the core PHP scripts directly>`": [
                           "/core/authorize.php",
                           "/core/core.api.php",
                           "/core/globals.api.php",
@@ -89,6 +89,8 @@ Unit:
                           "/core/modules/statistics/statistics.php",
                           "~^/core/modules/system/tests/https?\\.php",
                           "/core/rebuild.php",
+                          "/index.php",
+                          "/index.php/*",
                           "/update.php",
                           "/update.php/*"
                       ]
@@ -101,7 +103,8 @@ Unit:
               {
                   "match": {
                       ":nxt_hint:`uri <Denies access to PHP scripts other than index.php.  These are globs, matched case-sensitively: *.php does not match .PHP>`": [
-                          "!/index.php*",
+                          "!/index.php",
+                          "!/index.php/*",
                           "*.php"
                       ]
                   },
@@ -145,10 +148,19 @@ Unit:
       The order of these routes matters.  Keep the **share** action last.
       The steps above are what keep PHP files from reaching it: the first
       **return: 404** hides configuration and library files, and the second
-      rejects every **.php** URI other than **/index.php**.  If you reorder
-      these steps, or add a "static files first" **share** ahead of them, a
-      request for **/sites/default/settings.php** returns the file verbatim
-      with your database password in the body.
+      rejects every **.php** URI other than **/index.php**.  The
+      **/index.php** and **/index.php/\*** entries of the **direct** step
+      run the bare path and its PATH_INFO forms as PHP.  Without them,
+      **/index.php** reaches the **share**.  With no **types** list, the
+      share returns the source of **index.php**.  With the **types**
+      allow-list from the warning above, the share refuses the file, and
+      the **fallback** runs **index.php** with no PATH_INFO.  Without them,
+      a PATH_INFO form such as **/index.php/node/1** is not a file, so it
+      reaches the **fallback** and loses its PATH_INFO.  If you
+      reorder these steps, or add a "static files first"
+      **share** ahead of them, a request for
+      **/sites/default/settings.php** returns the file verbatim with your
+      database password in the body.
 
       Drupal's PHP also lives in **.module**, **.inc**, **.install**,
       **.theme** and **.profile** files.  In the configuration above the
