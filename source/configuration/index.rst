@@ -2369,6 +2369,57 @@ has special rules *(since 1.37.0)*:
   If the response has its own **Content-Encoding**,
   **null** only removes that field.
 
+Use this to serve a file that is stored compressed,
+for example **style.css.gz** next to **style.css**:
+
+.. code-block:: json
+
+   "routes": [
+       {
+           "match": {
+               "uri": "*.css",
+               "headers": {
+                   "Accept-Encoding": "*gzip*"
+               }
+           },
+
+           "action": {
+               "share": "/srv/www$uri.gz",
+               "response_headers": {
+                   "Content-Type": "text/css",
+                   "Content-Encoding": "gzip",
+                   "Vary": "Accept-Encoding"
+               },
+
+               "fallback": {
+                   "share": "/srv/www$uri",
+                   "response_headers": {
+                       "Vary": "Accept-Encoding"
+                   }
+               }
+           }
+       },
+       {
+           "action": {
+               "share": "/srv/www$uri",
+               "response_headers": {
+                   "Vary": "Accept-Encoding"
+               }
+           }
+       }
+   ]
+
+The **.gz** extension has no MIME type,
+so set **Content-Type** for the stored file.
+Set **Vary** on every response for these URIs.
+Unit does not compress a response
+that gets its **Content-Encoding** from **response_headers**,
+so the response does not get the **Vary** field that compression adds.
+Without **Vary**, a shared cache can send the gzip file
+to a client that does not accept gzip.
+The **headers** pattern does not read q-values,
+so a client that sends ``gzip;q=0`` also gets the gzip file.
+
 
 .. _configuration-return:
 
