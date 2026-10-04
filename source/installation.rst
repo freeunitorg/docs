@@ -1901,43 +1901,51 @@ Tag format: :samp:`{VERSION}-{VARIANT}` (pinned) or :samp:`latest-{VARIANT}` (ro
    * - ``wasm``
      - WebAssembly Components (WASI 0.2) via Wasmtime.
 
-   * - ``go1.24`` ``go1.25`` ``go1.26``
+   * - ``go-1.25`` ``go-1.26`` ``go-1.27``
      - Go (single-version images).
 
-   * - ``jsc17`` ``jsc21``
-     - Java Servlet Container via Eclipse Temurin OpenJDK LTS.
+   * - ``java-17`` ``java-21`` ``java-25`` ``java-26`` ``java-27``
+     - Java Servlet Container via Eclipse Temurin OpenJDK.
        Runs ``.war``/``.jsp`` applications.
+       The ``java-27`` image is based on Ubuntu 26.04.
 
-   * - ``node20`` ``node22`` ``node24``
+   * - ``node-20`` ``node-22`` ``node-24`` ``node-26``
      - Node.js (single-version images).
 
-   * - ``perl5.38`` ``perl5.40``
+   * - ``perl-5.38`` ``perl-5.40`` ``perl-5.42`` ``perl-5.44``
      - Perl (single-version images).
 
-   * - ``php8.3`` ``php8.4`` ``php8.5``
+   * - ``php-8.3`` ``php-8.4`` ``php-8.5``
      - PHP (single-version images).
 
-   * - ``python3.12`` ``python3.12-slim``
+   * - ``python-3.12`` ``python-3.12-slim``
      - Python 3.12, full and slim variants.
 
-   * - ``python3.13`` ``python3.13-slim``
+   * - ``python-3.13`` ``python-3.13-slim``
      - Python 3.13, full and slim variants.
 
-   * - ``python3.14`` ``python3.14-slim``
+   * - ``python-3.14`` ``python-3.14-slim``
      - Python 3.14, full and slim variants.
 
-   * - ``ruby3.3`` ``ruby3.4``
+   * - ``ruby-3.3`` ``ruby-3.4`` ``ruby-4.0``
      - Ruby (single-version images).
+
+.. note::
+
+   Older images used variant names without the hyphen,
+   such as ``php8.4`` or ``jsc21``.
+   Their ``latest-`` tags still exist, but they are no longer updated.
+   Use the hyphenated names.
 
 To pull and run an image:
 
 .. code-block:: console
 
-   $ docker pull ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php8.4 or 1.35.3-python3.13>`
+   $ docker pull ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php-8.4 or 1.37.0-python-3.13>`
 
 .. code-block:: console
 
-   $ docker run -d ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php8.4 or 1.35.3-python3.13>`
+   $ docker run -d ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php-8.4 or 1.37.0-python-3.13>`
 
 .. nxt_details:: Building custom language-version images
    :hash: inst-lang-docker
@@ -1948,7 +1956,7 @@ To pull and run an image:
 
       $ git clone https://github.com/freeunitorg/freeunit
       $ cd freeunit
-      $ docker build -f pkg/docker/Dockerfile.:nxt_ph:`VARIANT <e.g. python3.13>` pkg/docker/
+      $ docker build -f pkg/docker/Dockerfile.:nxt_ph:`VARIANT <e.g. python-3.13>` pkg/docker/
 
    See ``pkg/docker/`` for all available Dockerfiles and the
    `Makefile <https://github.com/freeunitorg/freeunit/blob/master/pkg/docker/Makefile>`__
