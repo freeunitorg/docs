@@ -6,7 +6,7 @@ project = 'FreeUnit'
 author = 'FreeUnit Community'
 copyright = '2026'
 version = '1.37.0'
-release_date = 'Oct 1, 2026'
+release_date = 'Oct 4, 2026'
 release = version
 needs_sphinx = '6.2'
 
