@@ -317,7 +317,7 @@ payload as a filename or **-** to denote stdin, as shown in the example below.
 Configuration formats
 +++++++++++++++++++++
 
-Unitctl picks the parser from the file extension:
+Unitctl picks the format from the file extension:
 
 .. list-table::
    :header-rows: 1
@@ -326,38 +326,33 @@ Unitctl picks the parser from the file extension:
      - Format
    * - **.json**
      - JSON
-   * - **.json5**
-     - JSON5
    * - **.pem**
      - PEM, for certificate uploads
 
-Input read from stdin with **-f -** is parsed as JSON.
+Unitctl sends input from stdin (**-f -**) as JSON.
 
-Unit itself stores and returns JSON. The other formats are a convenience in
-unitctl; it converts them before it sends the configuration.
+Unit itself stores and returns JSON. Unitctl sends a JSON file to Unit as the
+file is written. It does not parse or convert the file, so Unit reports any
+syntax error.
 
 .. note::
 
-   Unitctl no longer reads hjson. Use JSON5 instead. JSON5 supports the three
-   things people used hjson for: comments, unquoted keys and trailing commas.
+   Unitctl no longer reads hjson, cjson or JSON5. It refuses a **.hjson**,
+   **.cjson** or **.json5** file with one of these messages:
 
-   Rename the file to **.json5** and it works unchanged in most cases. JSON5
-   requires one thing hjson does not: every string value must be quoted.
+   - **hjson is no longer supported: convert the file to JSON first**
+   - **JSON5 is no longer supported: convert the file to JSON first, for
+     example with "json5 -o config.json config.json5"**
 
-   .. code-block:: json5
+   Convert the file to JSON once, then keep the configuration in JSON:
 
-      {
-          // JSON5 keeps the comment
-          listeners: {
-              "127.0.0.1:8080": {
-                  pass: "routes",
-              },
-          },
-      }
+   .. code-block:: console
 
-   A **.hjson** or **.cjson** file is now refused with a message telling you to
-   convert it. Piping hjson to stdin fails in the JSON parser instead, usually
-   at the first comment.
+      $ json5 -o config.json config.json5
+
+   Unitctl does not check input from stdin. If you pipe hjson or JSON5 to
+   stdin, Unit refuses it with a JSON syntax error, usually at the first
+   comment or unquoted key.
 
 .. note::
 
