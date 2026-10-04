@@ -14,7 +14,7 @@ News archive for the year 2026.
    :email: team@freeunit.org
    :title: Unit 1.37.0 Released
    :url: news/2026/unit-1.37.0-released
-   :date: 2026-10-01
+   :date: 2026-10-04
 
 .. nxt_news_entry::
    :author: FreeUnit Team
