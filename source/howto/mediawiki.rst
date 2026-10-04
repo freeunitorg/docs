@@ -51,18 +51,27 @@ documentation platform using Unit:
               },
               {
                   "match": {
-                      ":nxt_hint:`uri <Enables access to application entry points>`": [
-                          "/api.php*",
-                          "/img_auth.php*",
-                          "/index.php*",
-                          "/load.php*",
+                      ":nxt_hint:`uri <Enables access to application entry points.  Each root script is listed as its exact path and its PATH_INFO form, so similar names such as index.php.bak.php do not match>`": [
+                          "/api.php",
+                          "/api.php/*",
+                          "/img_auth.php",
+                          "/img_auth.php/*",
+                          "/index.php",
+                          "/index.php/*",
+                          "/load.php",
+                          "/load.php/*",
                           "/mw-config/*.php",
-                          "/opensearch_desc.php*",
-                          "/profileinfo.php*",
-                          "/rest.php*",
+                          "/opensearch_desc.php",
+                          "/opensearch_desc.php/*",
+                          "/profileinfo.php",
+                          "/profileinfo.php/*",
+                          "/rest.php",
+                          "/rest.php/*",
                           "/tests/qunit/*.php",
-                          "/thumb.php*",
-                          "/thumb_handler.php*"
+                          "/thumb.php",
+                          "/thumb.php/*",
+                          "/thumb_handler.php",
+                          "/thumb_handler.php/*"
                       ]
                   },
 
