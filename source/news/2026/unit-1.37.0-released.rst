@@ -34,27 +34,34 @@ which one could crash or confuse a privileged process:
   array without limit.
 - A file descriptor that comes with a queued message, or with a message
   that no handler takes, is no longer leaked.
+  Advisory: `GHSA-33mh-v5x6-3vj4 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-33mh-v5x6-3vj4>`__.
 - A **share** with compression no longer leaks a file descriptor when it
   answers ``406 Not Acceptable``.  Versions 1.35.0 to 1.36.1 are affected.
+  Advisory: `GHSA-qjcm-mqc4-83p5 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-qjcm-mqc4-83p5>`__.
 - With response compression on, the router kept one compressor stream for
   each router thread.  So two application responses on one thread used the
   same stream.  A client could get bytes of the response to another client,
   a body that was not valid, or a body that stopped early.  The router could
   also crash.  Now each response has its own stream.
+  Advisory: `GHSA-r8gw-f8h9-vc5q <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-r8gw-f8h9-vc5q>`__.
 - The wasm module checks the offset that the malloc handler of the guest
   returns.  It refuses a 64-bit linear memory, and it reads the base
   address of the memory again after the guest runs.
+  Advisory: `GHSA-46w9-v4vj-9w35 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-46w9-v4vj-9w35>`__.
 - Application processes no longer inherit the capabilities of a non-root
   unitd, for example from systemd ``AmbientCapabilities=``.
+  Advisory: `GHSA-33mh-v5x6-3vj4 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-33mh-v5x6-3vj4>`__.
 - The string form of the ``access_log`` ``format`` escapes the bytes that a
   variable expands to, the way nginx does.  Before, a request for
   ``/%0d%0a...`` could add a false record to the log.
+  Advisory: `GHSA-pr6c-9w58-qw6g <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-pr6c-9w58-qw6g>`__.
 - The object form of the ``access_log`` ``format`` escapes every value.
   Before, a request header with a quote could close a member and add
   members to the record.  A variable in a member name is no longer
   expanded; the name is written as configured.  The object form also
   writes U+FFFD for each byte that begins no valid UTF-8 sequence, so the
   record stays valid JSON.
+  Advisory: `GHSA-pr6c-9w58-qw6g <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-pr6c-9w58-qw6g>`__.
 - unitctl no longer depends on rustls-pemfile or on the HTTP/2 support of
   hyper.  This closes RUSTSEC-2025-0134 and RUSTSEC-2026-0258.
 
@@ -98,11 +105,17 @@ See :ref:`configuration-share-caching`.
   the body.
 - A chunked request body that grows over ``max_body_size`` after the first
   read gets ``413``.  Before, the router closed the connection without a
-  status line.
+  status line.  The ``400`` for a malformed chunk in a later read now closes
+  the connection too.  Before, the router kept it open and could write the
+  next bytes of the client into freed memory.
+  Advisory: `GHSA-qjcm-mqc4-83p5 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-qjcm-mqc4-83p5>`__.
 - The router ends the header of a chunked response at once.  Before, the
   client got the end of the header only with the first body bytes.
 - A regular expression match stops after 100,000 steps, and the request
-  gets ``500``.  Before, the limit was 10,000,000 steps.
+  gets ``500``.  Before, the limit was 10,000,000 steps.  With PCRE 1 and
+  with PCRE2 before 10.30, a long field could also overflow the stack and
+  crash the router.
+  Advisory: `GHSA-qjcm-mqc4-83p5 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-qjcm-mqc4-83p5>`__.
 - ``body_min_rate`` and ``send_min_rate`` in ``settings/http`` set a
   minimum client rate in bytes per second on HTTP/1 connections.  The
   default is ``0``, which turns the check off.  See

@@ -11,6 +11,9 @@ News archive for the year 2026.
                  certificate replacement without a restart; hardening of the
                  messages between Unit's processes; Accept-Encoding
                  negotiation fixes; a --hardening configure option.
+                 Five advisories: GHSA-qjcm-mqc4-83p5, GHSA-r8gw-f8h9-vc5q,
+                 GHSA-pr6c-9w58-qw6g, GHSA-33mh-v5x6-3vj4 and
+                 GHSA-46w9-v4vj-9w35.
    :email: team@freeunit.org
    :title: Unit 1.37.0 Released
    :url: news/2026/unit-1.37.0-released
