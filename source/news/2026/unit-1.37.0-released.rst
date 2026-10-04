@@ -36,6 +36,11 @@ which one could crash or confuse a privileged process:
   that no handler takes, is no longer leaked.
 - A **share** with compression no longer leaks a file descriptor when it
   answers ``406 Not Acceptable``.  Versions 1.35.0 to 1.36.1 are affected.
+- With response compression on, the router kept one compressor stream for
+  each router thread.  So two application responses on one thread used the
+  same stream.  A client could get bytes of the response to another client,
+  a body that was not valid, or a body that stopped early.  The router could
+  also crash.  Now each response has its own stream.
 - The wasm module checks the offset that the malloc handler of the guest
   returns.  It refuses a 64-bit linear memory, and it reads the base
   address of the memory again after the guest runs.
@@ -68,6 +73,11 @@ See :ref:`configuration-share-caching`.
   ``min_length`` is not selected, and a request that refuses every coding Unit
   can send gets ``406 Not Acceptable``.  This is also true on a server with
   no compression configured.
+- A ``Content-Encoding`` set with ``response_headers`` no longer makes the
+  body coded twice.  Such a response is not compressed, as with a
+  ``Content-Encoding`` from an application.  A ``Content-Encoding`` removed
+  with ``null`` in ``response_headers`` also keeps the compressor out.  See
+  :ref:`configuration-response-headers`.
 - ``"limits": {"timeout"}`` now also bounds how long a request waits for an
   application process.
 - The proxy reads an upstream ``Transfer-Encoding`` as a list of codings
