@@ -2341,6 +2341,34 @@ this extends the **Content-Type** issued by the app:
 Alternatively, they will come in handy with
 :ref:`custom log formatting <configuration-access-log>`.
 
+A **Content-Encoding** in **response_headers**
+has special rules *(since 1.37.0)*:
+
+- Unit resolves the value once,
+  when it decides whether to compress the response,
+  and sends that value.
+  So a **$response_header_*** variable in the value
+  sees only the header fields that exist at that time.
+  For example, a **share** adds **Accept-Ranges** later,
+  so **$response_header_accept_ranges** is empty there.
+  This also applies when compression is not configured.
+- This happens only for a response with a known length that is not 0,
+  a 2XX or 3XX status other than 204 and 304,
+  and no **Content-Encoding** of its own.
+  For other responses,
+  Unit resolves the value when it sends the header,
+  as for any other field.
+- If the value is a string,
+  Unit does not compress the response,
+  the **ETag** stays strong,
+  and Unit does not add **Vary**.
+- If the value is **null**,
+  Unit does not compress the response.
+  The body is then identity,
+  so a client that refused identity gets a 406 "Not Acceptable" response.
+  If the response has its own **Content-Encoding**,
+  **null** only removes that field.
+
 
 .. _configuration-return:
 
