@@ -444,7 +444,7 @@ Full Changelog
 
        *) Bugfix: a router thread could fail to allocate the listen event while
           Unit added a listener. Then a configuration request could wait for
-          ever, or a listening socket that several router threads shared could
+          without end, or a listening socket that several router threads shared could
           close too early. If the thread had no free connection slot, the
           listener never accepted connections. Now the request completes. A
           listener without a free slot starts to accept connections when a slot
