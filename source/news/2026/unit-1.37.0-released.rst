@@ -21,15 +21,24 @@ which one could crash or confuse a privileged process:
   was checked.
 - A port limits how much memory the reassembly of fragmented messages can
   hold, and a shared memory queue stops after a bounded number of retries.
-- The router accepts QUIT, a new configuration and its other control
-  messages only from the main process or the controller, by the sender pid
-  that the kernel gives.  This makes the attack harder, but does not stop
-  it yet: an application can first send a false ``NEW_PORT``.  A later
-  release checks ``NEW_PORT`` too.
+- The router checks the sender pid that the kernel gives for its control
+  messages.  QUIT, a new configuration and the other control messages are
+  accepted only from the process that may send them: main, the controller,
+  or a prototype.
+- The router accepts ``NEW_PORT`` only from main, from a prototype for an
+  application port, and from an application for its own port.  So an
+  application can no longer register itself as main or as the controller.
+  ``GET_PORT``, ``GET_MMAP``, ``MMAP``, ``OOSM``, ``RPC_READY`` and
+  ``RPC_ERROR`` are checked too.
 - A shared memory segment id from the other process can no longer grow an
   array without limit.
-- File descriptors sent with a failed or queued message are no longer
-  leaked.
+- A file descriptor that comes with a queued message, or with a message
+  that no handler takes, is no longer leaked.
+- A **share** with compression no longer leaks a file descriptor when it
+  answers ``406 Not Acceptable``.  Versions 1.35.0 to 1.36.1 are affected.
+- The wasm module checks the offset that the malloc handler of the guest
+  returns.  It refuses a 64-bit linear memory, and it reads the base
+  address of the memory again after the guest runs.
 - Application processes no longer inherit the capabilities of a non-root
   unitd, for example from systemd ``AmbientCapabilities=``.
 - The string form of the ``access_log`` ``format`` escapes the bytes that a
@@ -47,6 +56,8 @@ which one could crash or confuse a privileged process:
   ``304 Not Modified``, and ``If-Match`` and ``If-Unmodified-Since`` with
   ``412 Precondition Failed`` when they do not hold.
 - A content-coded response carries a weak entity-tag.
+- A static ``.svgz`` file is served as ``image/svg+xml`` with
+  ``Content-Encoding: gzip``.  Unit sends the stored bytes unchanged.
 
 See :ref:`configuration-share-caching`.
 
@@ -59,9 +70,27 @@ See :ref:`configuration-share-caching`.
   no compression configured.
 - ``"limits": {"timeout"}`` now also bounds how long a request waits for an
   application process.
-- The proxy recognises ``Transfer-Encoding: gzip, chunked`` and other
-  spellings of ``chunked``, handles an upstream 1xx response, and no longer
-  sends two ``Content-Length`` fields upstream.
+- The proxy reads an upstream ``Transfer-Encoding`` as a list of codings
+  and compares the names without case.  It decodes one ``chunked``.  Any
+  other coding, such as ``gzip, chunked``, and ``chunked`` together with
+  ``Content-Length`` get ``502``.  Before, the chunk framing reached the
+  client as body bytes.
+- The proxy drops an upstream 1xx interim response and relays the final
+  one.  It no longer sends two ``Content-Length`` fields upstream.
+- The router answers ``Expect: 100-continue`` with ``100 Continue``.
+  Before, curl and Guzzle waited for their own timeout before they sent
+  the body.
+- A chunked request body that grows over ``max_body_size`` after the first
+  read gets ``413``.  Before, the router closed the connection without a
+  status line.
+- The router ends the header of a chunked response at once.  Before, the
+  client got the end of the header only with the first body bytes.
+- A regular expression match stops after 100,000 steps, and the request
+  gets ``500``.  Before, the limit was 10,000,000 steps.
+- ``body_min_rate`` and ``send_min_rate`` in ``settings/http`` set a
+  minimum client rate in bytes per second on HTTP/1 connections.  The
+  default is ``0``, which turns the check off.  See
+  :ref:`configuration-min-rate`.
 - With telemetry on, the application gets a ``traceparent`` whose parent is
   FreeUnit's own span.
 
@@ -70,6 +99,12 @@ See :ref:`configuration-share-caching`.
 - ``PUT /certificates/<name>`` replaces an existing certificate bundle.  An
   external ACME client can renew a certificate with one request and no
   restart; see :ref:`configuration-ssl-acme`.
+- ``GET /certificates`` shows the SHA-256 ``fingerprint`` of the server
+  certificate of each bundle.
+- The main process writes state files, certificate bundles and njs
+  modules in a short-lived child process.  So a slow ``fsync(2)`` no longer
+  delays the start of application processes.  On macOS, a stored file is
+  also flushed from the cache of the drive.
 - When unitd runs as root, the control API now also accepts the user set
   with ``--control-user`` and a peer in the group set with
   ``--control-group``.  Before, such a user passed the socket permissions,
@@ -88,6 +123,15 @@ See :ref:`configuration-share-caching`.
   session ends.  Before, it stayed out of the idle queues and counted
   against ``processes.max`` until it died.
 - A non-root unitd no longer exits when a syscall filter denies ``capget()``.
+- On Linux, the default ``listen_threads`` is at most the CPU limit of the
+  cgroup v2 group of unitd (``cpu.max``).  A container limited to 2 CPUs on
+  a 64-CPU host now starts 2 router threads, not 64.
+- A router thread with no free connection no longer logs an
+  ``epoll_ctl()`` alert every 100 milliseconds.
+- A WebSocket client that sends PINGs and does not read the PONGs no longer
+  makes the router keep one PONG for each PING.
+- An application with a ``rootfs`` can no longer make unitd create
+  directories outside the ``rootfs`` through a symlink.
 
 **Language modules**
 
@@ -96,8 +140,15 @@ See :ref:`configuration-share-caching`.
   bytes.
 - Python ASGI: a WebSocket message larger than 1 MB is no longer refused;
   the limit is ``max_frame_size``.
+- PHP: ``flush()`` now sends the response header.  A ``script`` must be in
+  ``root`` or below it; before, ``/srv/app2`` passed for ``"root":
+  "/srv/app"``.  The module no longer reads the target of a request after
+  the request is released.
 - PHP: the TrueAsync code path, which never built, is removed.
 - njs is updated to 1.0.1.
+- WebAssembly: wasmtime is updated to 48.0.5.  It fixes twelve wasmtime
+  security advisories.  Building the two wasm modules now needs Rust 1.95.0
+  or newer.
 
 **Build**
 
