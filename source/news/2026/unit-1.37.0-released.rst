@@ -230,6 +230,16 @@ Full Changelog
           has the same bytes as before. $body_bytes_sent no longer counts the
           empty line.
 
+       *) Security: with response compression on, the router kept one
+          compressor stream for each router thread. But it compresses an
+          application response in several steps. So two application
+          responses on one thread used the same stream. A client could get
+          bytes of the response to another client, a body that was not
+          valid, or a body that stopped early. The router could also crash
+          when it used a stream that another response had freed. Now each
+          response has its own stream, and the router frees it when the
+          response ends or stops early.
+
        *) Change: the main process now writes the state files in a
           short-lived child process, so a slow fsync(2) no longer delays
           the start of application processes after a reconfiguration, or
@@ -1103,9 +1113,6 @@ Full Changelog
           the acceptability check other than success as a server error; only the
           static path reported the 406.
 
-       [PENDING https://github.com/freeunitorg/freeunit/pull/561. Keep the
-       entry below only if that PR merges before the 1.37.0 tag. Then
-       delete these three lines. If it misses the tag, delete the entry.]
        *) Bugfix: a "Content-Encoding" set with "response_headers" no longer
           makes the body coded twice.  With a compressor configured, the
           response was compressed first, and "response_headers" then replaced
@@ -1115,9 +1122,11 @@ Full Changelog
           not compressed, as with a "Content-Encoding" from an application.
           This applies to static files and to application responses.  A
           "Content-Encoding" removed with null in "response_headers" also keeps
-          the compressor out, so compressed bytes are no longer sent without a
-          "Content-Encoding".  Such a response is identity, so a client that
-          refused identity gets "406 Not Acceptable".
+          the compressor out, so bytes that Unit compressed are no longer sent
+          without a "Content-Encoding".  Such a response is identity, so a
+          client that refused identity gets "406 Not Acceptable".  For a
+          response that has its own "Content-Encoding", the null still removes
+          only the field, as before.
 
        *) Change: unitd, libunit.a and the language modules no longer contain
           the test hooks compiled under "#if (NXT_TESTS)".  "./configure
