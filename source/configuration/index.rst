@@ -3913,12 +3913,21 @@ Note the **path** and **home** settings:
       "isolation": {
           "rootfs": "/var/app/sandbox/",
           "namespaces": {
-              "credential": true
+              "credential": true,
+              "mount": true
           }
       }
 
    Ensure that the user the app *runs as*
    can access the **rootfs** directory.
+
+   Also set **mount** to **true**.
+   Without a new mount namespace, the app process cannot mount
+   the **procfs**, **tmpfs** or **language_deps** automounts.
+   Unit refuses such a configuration *(since 1.37.0)*.
+   The error message names the automounts and the three ways to fix it:
+   set **mount** to **true**, remove **credential**,
+   or set those automounts to **false**.
 
 Unit mounts language-specific files and directories
 to the new root
@@ -4060,6 +4069,9 @@ and has four integer options:
        If the app process does not report in time,
        Unit stops waiting for it
        and writes the failure to the log.
+       If this happens while Unit applies a new configuration,
+       the reconfiguration fails
+       and the previous configuration stays active.
 
        The default is 0,
        which means Unit waits indefinitely.
@@ -4072,6 +4084,9 @@ and has four integer options:
        Unit cancels the request
        and returns a 503 "Service Unavailable" response
        to the client.
+       The timeout also covers the time
+       a request waits for a free app process
+       *(since 1.37.0)*.
 
        .. note::
 
@@ -5412,6 +5427,25 @@ WebAssembly
                      ]
                   }
 
+          * - **execution_timeout**
+            - Integer;
+              number of seconds the component may run for one request.
+              If the component runs longer, Unit stops it.
+              If the component has not started its response,
+              Unit returns a 500 "Internal Server Error" response.
+              If the component has already sent its header fields,
+              the client gets a truncated response.
+              The time runs from the first instruction of the component
+              until it returns, and includes the time spent in host calls.
+              To limit the time a client waits for a response,
+              use **timeout** in
+              :ref:`limits <configuration-proc-mgmt-lmts>`.
+
+              The default is 0,
+              which means no limit.
+
+              *(since 1.37.0)*
+
        Example:
 
        .. code-block:: json
@@ -5673,6 +5707,23 @@ In turn, the **http** option exposes the following settings:
 
         The default is 30.
 
+    * - **chunked_transform**
+      - Boolean;
+        if set to **true**,
+        Unit accepts a request body
+        sent with **Transfer-Encoding: chunked**.
+        Unit reads the whole body first,
+        then passes the request to the application, the proxied server,
+        or the share with a **Content-Length** header field.
+        The **max_body_size** limit applies to the decoded body.
+        If set to **false**,
+        Unit returns a 411 "Length Required" response
+        to a request with a chunked body.
+
+        The default is **false**.
+
+        *(since 1.33.0)*
+
     * - **discard_unsafe_fields**
       - Boolean;
         controls header field name parsing.
@@ -5790,16 +5841,38 @@ In turn, the **http** option exposes the following settings:
 
         Defaults:
         **.aac**, **.apng**, **.atom**,
-        **.avi**, **.avif**, **avifs**, **.bin**, **.css**,
+        **.avi**, **.avif**, **.avifs**, **.bin**, **.css**,
         **.deb**, **.dll**, **.exe**, **.flac**, **.gif**,
         **.htm**, **.html**, **.ico**, **.img**, **.iso**,
         **.jpeg**, **.jpg**, **.js**, **.json**, **.md**,
-        **.mid**, **.midi**, **.mp3**, **.mp4**, **.mpeg**,
+        **.mid**, **.midi**, **.mjs**, **.mp3**, **.mp4**, **.mpeg**,
         **.mpg**, **.msi**, **.ogg**, **.otf**, **.pdf**,
         **.php**, **.png**, **.rpm**, **.rss**, **.rst**,
-        **.svg**, **.ttf**, **.txt**, **.wav**, **.webm**,
+        **.svg**, **.svgz**, **.ttf**, **.txt**, **.wav**, **.webm**,
         **.webp**, **.woff2**, **.woff**, **.xml**, and
         **.zip**.
+
+        A **.svgz** file is an SVG image stored with gzip compression
+        *(since 1.37.0)*.
+        Unit serves it as **image/svg+xml**
+        with a **Content-Encoding: gzip** header field
+        and sends the stored bytes unchanged.
+        Unit adds this header field for every client,
+        also when **Accept-Encoding** does not list gzip,
+        because no other form of the file exists.
+        A compressor in **compression** does not compress the file again,
+        and a **Range** applies to the stored bytes.
+        A **types** pattern that matches **image/svg+xml**,
+        for example ``image/*``, matches a **.svgz** file.
+        The **ETag** of a **.svgz** file ends in **-gzip**.
+        Unit does not return 304 to **If-Modified-Since** for such a file,
+        and a date in **If-Range** does not resume a download;
+        a client needs **If-None-Match** or an **ETag** in **If-Range**.
+        If **mime_types** maps **.svgz** to another type,
+        Unit adds no **Content-Encoding**.
+        A **Content-Encoding** in **response_headers** replaces the added
+        header field, and **null** removes it;
+        the bytes are still gzip.
 
         .. warning::
 
@@ -5946,6 +6019,9 @@ For the response:
 The minimum transfer rates add to the timeouts and do not replace them.
 If a client stops completely, there is no data to check,
 and **body_read_timeout** or **send_timeout** applies.
+A **body_read_timeout** or **send_timeout** of 0 turns that timer off.
+Then Unit does not stop a client that stops completely,
+because the minimum rate check runs only when a read or write completes.
 
 The minimum transfer rates apply to the request body and the response
 of an HTTP/1 connection.
