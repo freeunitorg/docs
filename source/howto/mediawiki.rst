@@ -63,8 +63,6 @@ documentation platform using Unit:
                           "/mw-config/*.php",
                           "/opensearch_desc.php",
                           "/opensearch_desc.php/*",
-                          "/profileinfo.php",
-                          "/profileinfo.php/*",
                           "/rest.php",
                           "/rest.php/*",
                           "/tests/qunit/*.php",
@@ -128,7 +126,7 @@ documentation platform using Unit:
       **script** :ref:`setting <configuration-php>`:
 
       - The **direct** target runs the **.php** script from the URI or
-        defaults to **index.php** if the w omits it.
+        defaults to **index.php** if the URI omits it.
 
       - The **index** target specifies the **script** that Unit runs
         for *any* URIs the target receives.
