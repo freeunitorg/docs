@@ -235,14 +235,14 @@ Full Changelog
           $body_bytes_sent no longer counts the empty line.
 
        *) Security: with response compression on, the router kept one
-          compressor stream for each router thread. But it compresses an
-          application response in several steps. So two application
-          responses on one thread used the same stream. A client could get
-          bytes of the response to another client, a body that was not
-          valid, or a body that stopped early. The router could also crash
-          when it used a stream that another response had freed. Now each
-          response has its own stream, and the router frees it when the
-          response ends or stops early.
+          compressor stream for each router thread. The router compresses an
+          application response in several steps. So two responses on one
+          thread used the same stream. A client could get bytes of the
+          response of another client, a body that was not valid, or a body
+          that stopped early. The router could also crash when it used a
+          stream that another response had freed. Now each response has its
+          own stream. The router frees the stream when the response ends or
+          stops early.
 
        *) Change: the main process now writes the state files in a short-lived
           child process. A slow fsync(2) no longer delays the start of
@@ -291,11 +291,11 @@ Full Changelog
           its own cgroup as "/scope/python" instead of "/". Now Unit creates
           the namespace after it moves the process into its cgroup.
 
-       *) Change: on macOS, a stored state file is now flushed with
-          fcntl(F_BARRIERFSYNC), and its directory with fcntl(F_FULLFSYNC)
-          after the rename, so the file also leaves the cache of the drive.
-          Plain fsync(2) there does not flush that cache, and a power loss
-          could lose a stored configuration.
+       *) Change: on macOS, Unit now flushes a stored state file with
+          fcntl(F_BARRIERFSYNC). It flushes the directory of the file with
+          fcntl(F_FULLFSYNC) after the rename. As a result, the file also
+          leaves the cache of the drive. Plain fsync(2) does not flush this
+          cache on macOS, and a power loss could lose a stored configuration.
 
        *) Security: the router and libunit read records from shared memory.
           The other process can write to this memory at any time. The code did
@@ -318,24 +318,23 @@ Full Changelog
           module refuses a 64-bit memory. It also reads the base address again
           after the guest runs.
 
-       *) Bugfix: an uploaded njs module was written into its file without
-          truncating it, and without fsync(2). When a longer file of that
-          name was already on disk, for example one that a failed write had
-          left, the old tail stayed after the new module. The router read
-          that file and the configuration failed. The upload was also
-          answered with 200 when the write failed. Now the main process
-          stores the module through a temporary file, flushes it and renames
-          it, in its store child, and the upload is answered only when the
-          module is on disk. A deletion also runs in the store child. A
-          module name can no longer start with ".", and a module larger than
-          16 MiB is answered with 413. Earlier versions accepted a name that
-          starts with "."; such a module is no longer loaded or listed after
-          the upgrade.
+       *) Bugfix: Unit wrote an uploaded njs module into its file without
+          truncation and without fsync(2). A longer file of the same name could
+          be on disk, for example from a failed write. Then the old tail stayed
+          after the new module, the router read that file, and the
+          configuration failed. Unit also answered the upload with 200 when
+          the write failed. Now the main process stores the module in its store
+          child process. It writes a temporary file, flushes it, and renames
+          it. Unit answers the upload only when the module is on disk. A
+          deletion also runs in the store child. A module name can no longer
+          start with ".". A module of more than 16 MiB gets 413. Earlier
+          versions accepted a name that starts with ".". After an upgrade, Unit
+          does not load or list such a module.
 
        *) Bugfix: at startup, a stored njs module that did not compile hid
-          every stored module that was read after it. Those modules were
-          missing from /js_modules and could not be used. Now only the module
-          that does not compile is left out.
+          every stored module that Unit read after it. These modules were
+          missing from /js_modules and could not be used. Now Unit leaves out
+          only the module that does not compile.
 
        *) Bugfix: a keep-alive TLS connection could use freed TLS settings.
           This happened when the connection was idle during a reconfiguration
@@ -653,17 +652,17 @@ Full Changelog
           "format". The object form does not keep the bytes either. It replaces
           each byte that is not valid UTF-8 with U+FFFD before it serializes.
 
-       *) Security: when "access_log" "format" was a JSON object without an
-          njs expression, the router wrote each variable's value into the
-          record without escaping it. A request header with a quote could
-          close a member and add members to the record. Every value is now
-          escaped. A variable in a member name is no longer expanded; the
-          name is written as configured.
+       *) Security: when "format" in "access_log" was a JSON object without an
+          njs expression, the router wrote the value of each variable into the
+          record without escaping. A request header with a quote could close a
+          member and add members to the record. Now Unit escapes every value.
+          Unit no longer expands a variable in a member name. It writes the
+          name as configured.
 
-       *) Change: an object-format access log replaces each byte that begins
-          no valid UTF-8 sequence with U+FFFD. Request headers may carry such
-          bytes, and the record was then not valid JSON. The string form
-          keeps them, written as \xHH.
+       *) Change: an access log in the object form replaces each byte that
+          begins no valid UTF-8 sequence with U+FFFD. Request headers can
+          carry such bytes, and the record was then not valid JSON. The string
+          form keeps these bytes and writes them as \xHH.
 
        *) Change: the contrib njs is now version 1.0.1.
 
@@ -1185,20 +1184,20 @@ Full Changelog
           acceptability check other than success as a server error. Only the
           static path reported the 406.
 
-       *) Bugfix: a "Content-Encoding" set with "response_headers" no longer
-          makes the body coded twice.  With a compressor configured, the
-          response was compressed first, and "response_headers" then replaced
-          the "Content-Encoding" of the compressor.  So a share of "$uri.gz"
-          with "Content-Encoding: gzip" sent gzip of the stored gzip file to a
-          client that accepts gzip, with a weak ETag.  Now such a response is
-          not compressed, as with a "Content-Encoding" from an application.
-          This applies to static files and to application responses.  A
-          "Content-Encoding" removed with null in "response_headers" also keeps
-          the compressor out, so bytes that Unit compressed are no longer sent
-          without a "Content-Encoding".  Such a response is identity, so a
-          client that refused identity gets "406 Not Acceptable".  For a
-          response that has its own "Content-Encoding", the null still removes
-          only the field, as before.
+       *) Bugfix: a "Content-Encoding" that "response_headers" sets no longer
+          makes Unit code the body two times. With a compressor, Unit
+          compressed the response first. Then "response_headers" replaced the
+          "Content-Encoding" of the compressor. For example, a share of
+          "$uri.gz" with "Content-Encoding: gzip" sent gzip of the stored gzip
+          file to a client that accepts gzip, with a weak ETag. Now Unit does
+          not compress such a response, as with a "Content-Encoding" from an
+          application. This applies to static files and to application
+          responses. A "Content-Encoding" that null removes in
+          "response_headers" also keeps the compressor out. So bytes that Unit
+          compressed no longer go out without a "Content-Encoding". Such a
+          response is identity, so a client that refused identity gets "406
+          Not Acceptable". If a response has its own "Content-Encoding", null
+          still removes only the field, as before.
 
        *) Change: unitd, libunit.a and the language modules no longer have the
           test hooks that the build compiled under "#if (NXT_TESTS)".
@@ -1222,10 +1221,11 @@ Full Changelog
 
        *) Bugfix: the PHP module checked that "script" is under "root" by
           comparing the first bytes of the two real paths. With "root":
-          "/srv/app", a script in "/srv/app2" passed the check and was served.
-          The script must now be in "root" or in a directory below it. A
-          "script" that resolves to "root" itself is also rejected; it was
-          served as an empty 200 response. The bug had appeared in 0.4.
+          "/srv/app", a script in "/srv/app2" passed the check and Unit served
+          it. Now the script must be in "root" or in a directory below it. Unit
+          also refuses a "script" that resolves to "root" itself. Before, Unit
+          served it as an empty 200 response. The bug is in the PHP module
+          since 0.4.
 
        *) Change: the Java module now bundles Apache Tomcat 9.0.122 (from
           9.0.121). The upstream release fixes CVE-2026-87022 (WebSocket
