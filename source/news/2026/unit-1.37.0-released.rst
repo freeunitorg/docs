@@ -22,35 +22,39 @@ in which an application process could crash or confuse a privileged process:
 - A port limits the memory that it uses to put fragmented messages together.
   A shared memory queue stops after a limited number of retries.
 - The router accepts QUIT, a new configuration and other control messages
-  only from the main process or the controller. It uses the sender pid that
-  the kernel gives. This makes an attack harder, but it does not stop the
-  attack yet. An application can first send a false ``NEW_PORT``. A later
-  release will also check ``NEW_PORT``.
+  only from the process that can send them: main, the controller or a
+  prototype. It uses the sender pid that the kernel gives.
 - A shared memory segment id from the other process can no longer make an
   array grow without a limit.
-- Unit no longer leaks the file descriptors that it sends with a failed or
-  queued message.
+- Unit no longer leaks a file descriptor that comes with a queued message,
+  or with a message that no handler takes.
+  Advisory: `GHSA-33mh-v5x6-3vj4 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-33mh-v5x6-3vj4>`__.
 - A **share** with compression no longer leaks a file descriptor when it
-  answers ``406 Not Acceptable``.  Versions 1.35.0 to 1.36.1 are affected.
+  answers ``406 Not Acceptable``. Versions 1.35.0 to 1.36.1 are affected.
+  Advisory: `GHSA-qjcm-mqc4-83p5 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-qjcm-mqc4-83p5>`__.
 - With response compression on, the router kept one compressor stream for
-  each router thread.  So two application responses on one thread used the
-  same stream.  A client could get bytes of the response to another client,
-  a body that was not valid, or a body that stopped early.  The router could
-  also crash.  Now each response has its own stream.
+  each router thread. So two application responses on one thread used the
+  same stream. A client could get bytes of the response of another client,
+  a body that was not valid, or a body that stopped early. The router could
+  also crash. Now each response has its own stream.
+  Advisory: `GHSA-r8gw-f8h9-vc5q <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-r8gw-f8h9-vc5q>`__.
 - Application processes no longer inherit the capabilities of a non-root
   unitd. An example is the systemd option ``AmbientCapabilities=``.
+  Advisory: `GHSA-33mh-v5x6-3vj4 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-33mh-v5x6-3vj4>`__.
 - The string form of ``format`` in ``access_log`` escapes the bytes that a
   variable expands to, as nginx does. Before, a request for ``/%0d%0a...``
   could add a false record to the log.
-- The object form of the ``access_log`` ``format`` escapes every value.
+  Advisory: `GHSA-pr6c-9w58-qw6g <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-pr6c-9w58-qw6g>`__.
+- The object form of ``format`` in ``access_log`` now escapes every value.
   Before, a request header with a quote could close a member and add
-  members to the record.  A variable in a member name is no longer
-  expanded; the name is written as configured.  The object form also
-  writes U+FFFD for each byte that begins no valid UTF-8 sequence, so the
-  record stays valid JSON.
+  members to the record. Unit no longer expands a variable in a member name.
+  The object form also writes U+FFFD for each byte that begins no valid
+  UTF-8 sequence, so the record stays valid JSON.
+  Advisory: `GHSA-pr6c-9w58-qw6g <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-pr6c-9w58-qw6g>`__.
 - The wasm module checks the offset that the malloc handler of the guest
   returns. It refuses a 64-bit linear memory, and it reads the base address
   of the memory again after the guest runs.
+  Advisory: `GHSA-46w9-v4vj-9w35 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-46w9-v4vj-9w35>`__.
 - The router no longer accepts a false ``NEW_PORT`` from an application. It
   now checks the sender of ``NEW_PORT``, ``GET_PORT``, ``GET_MMAP``, ``MMAP``,
   ``OOSM``, ``RPC_READY`` and ``RPC_ERROR``.
@@ -80,29 +84,39 @@ For more information, see :ref:`configuration-share-caching`.
   not select a compressor that is below its ``min_length``. If a request
   refuses each coding that Unit can send, Unit answers ``406 Not
   Acceptable``. This is also true for a server that has no compression.
-- A ``Content-Encoding`` set with ``response_headers`` no longer makes the
-  body coded twice.  Such a response is not compressed, as with a
-  ``Content-Encoding`` from an application.  A ``Content-Encoding`` removed
-  with ``null`` in ``response_headers`` also keeps the compressor out.  See
-  :ref:`configuration-response-headers`.
+- A ``Content-Encoding`` that ``response_headers`` sets no longer makes Unit
+  code the body two times. Unit does not compress such a response, as with a
+  ``Content-Encoding`` from an application. A ``Content-Encoding`` that
+  ``null`` removes in ``response_headers`` also keeps the compressor out. For
+  more information, see :ref:`configuration-response-headers`.
 - ``"limits": {"timeout"}`` now also limits the time that a request waits
   for an application process.
-- The proxy recognizes ``Transfer-Encoding: gzip, chunked`` and other
-  spellings of ``chunked``. It handles a 1xx response from the upstream
-  server. It no longer sends two ``Content-Length`` fields to the upstream
-  server.
+- The proxy now reads an upstream ``Transfer-Encoding`` as a list of codings
+  and compares the names without case. It decodes one ``chunked`` coding.
+  Any other coding, such as ``gzip, chunked``, gets ``502``. Before, the
+  chunk framing reached the client as body bytes.
+- The proxy drops a 1xx response from the upstream server, except 101, and
+  relays the final response. It no longer sends two ``Content-Length``
+  fields to the upstream server.
 - The router answers ``Expect: 100-continue`` with ``100 Continue``. Before,
   curl and Guzzle waited for their own timeout before they sent a large body.
 - A chunked request body that grows over ``max_body_size`` now gets ``413``.
   Before, the router closed the connection with no status line.
+  The ``400`` for a malformed chunk in a later read now closes the
+  connection too. Before, the router kept it open and could write the next
+  bytes of the client into freed memory.
+  Advisory: `GHSA-qjcm-mqc4-83p5 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-qjcm-mqc4-83p5>`__.
 - The router sends the header of a chunked response at once, with its empty
   line.
 - A regular expression now stops after 100,000 match steps. The request gets
   ``500``.
+  With PCRE 1 and with PCRE2 before 10.30, a long field could also overflow
+  the stack and crash the router.
+  Advisory: `GHSA-qjcm-mqc4-83p5 <https://github.com/freeunitorg/freeunit/security/advisories/GHSA-qjcm-mqc4-83p5>`__.
 - ``body_min_rate`` and ``send_min_rate`` in ``settings/http`` close slow
   HTTP/1 connections. The default is ``0``, which turns the check off.
-- If telemetry is on, the application gets a ``traceparent``. The parent in
-  it is the own span of FreeUnit.
+- If telemetry is on, the application gets a ``traceparent``. Its parent is
+  the span of FreeUnit.
 
 **Certificates and the control socket**
 
@@ -142,18 +156,18 @@ For more information, see :ref:`configuration-share-caching`.
 
 - Java: Unit no longer splits a WebSocket text message into frames of 8 KiB.
   The asynchronous remote now sends data. A ``ByteBuffer`` slice sends its
-  own bytes.
-  The module bundles Apache Tomcat 9.0.122.
+  own bytes. The module now bundles Apache Tomcat 9.0.122.
 - Python ASGI: Unit no longer refuses a WebSocket message that is larger than
   1 MB. The limit is ``max_frame_size``.
 - PHP: ``flush()`` now sends the response header.
 - PHP: the module no longer reads the target index of a request after the
   request is released. Before, it could run ``chdir(2)`` in the wrong
   directory.
-- PHP: a ``script`` must be in ``root`` or below it; before, ``/srv/app2``
-  passed for ``"root": "/srv/app"``.
-- WebAssembly: wasmtime is updated to 48.0.5. To build the wasm modules, you
-  now need Rust 1.95.0 or newer.
+- PHP: a ``script`` must be in ``root`` or in a directory below it. Before,
+  a script in ``/srv/app2`` passed the check for ``"root": "/srv/app"``.
+- WebAssembly: wasmtime is updated to 48.0.5. It fixes twelve wasmtime
+  security advisories. To build the wasm modules, you now need Rust 1.95.0
+  or newer.
 - PHP: the TrueAsync code path is removed. It never built.
 - njs is updated to 1.0.1.
 
@@ -169,10 +183,10 @@ For more information, see :ref:`configuration-share-caching`.
 
 **Docker images**
 
-- New images for Go 1.27, Perl 5.44 and Java 27.  The Java images are now
-  based on Ubuntu 26.04 (resolute) instead of 24.04 (noble).
-- The images install the pending updates of their base image when they are
-  built.
+- New images for Go 1.27, Perl 5.44 and Java 27. The Java images now use
+  Ubuntu 26.04 (resolute) instead of 24.04 (noble).
+- The images now install the pending updates of their base image when they
+  are built.
 
 **unitctl**
 
@@ -190,42 +204,52 @@ Full Changelog
 
        *) Bugfix: a chunked request body could grow over "max_body_size" after
           the read that carried the header. The router then closed the
-          connection with no status line. Now it answers 413 and closes. A
-          later failure to allocate memory in the chunk parser, or to write the
-          body to the temporary file, now answers 500 and closes. A malformed
-          chunk in a later read now answers 400 and closes the connection. A
-          short write of a body with a Content-Length to the temporary file now
-          answers 500.
+          connection with no status line. Now it answers 413 and closes. A body
+          that crossed the limit in the same read as the header already got
+          413. A later failure to allocate memory in the chunk parser, or to
+          write the body to the temporary file, now answers 500 and closes. A
+          malformed chunk in a later read already got 400. Now that 400 also
+          clears keepalive and closes the connection, like the other error
+          paths. A short write of a body with a Content-Length to the temporary
+          file now answers 500. Before, the router closed the connection with
+          no answer.
 
        *) Bugfix: the router could take a message of an application response
           before an earlier message of the same response. With a header over
-          1024 bytes, the router answered 503 and logged "response buffer too
-          small for fields count". With a large body write and a later smaller
-          one, the client got the two parts in the wrong order. This needed two
-          or more application processes or threads. The bug is in libunit,
-          since 1.19.0. An application of type "external", such as Go or
-          Node.js, gets the fix when you build it with the new libunit.
+          1024 bytes and a first body write of 16 to 1024 bytes, the router
+          read the body as the header. It logged "response buffer too small for
+          fields count" and answered 503. With a body write over 1024 bytes and
+          a later smaller one, the client got the two parts in the wrong order,
+          and Unit logged nothing. This needed two or more application
+          processes or threads. The bug is in libunit, since 1.19.0. An
+          application of type "external", such as Go or Node.js, gets the fix
+          when you build it with the new libunit.
 
        *) Bugfix: the router did not answer "Expect: 100-continue". A client
           that sent it, as curl and Guzzle do for large uploads, waited for its
           own timeout before it sent the body. For curl, the timeout is 1
           second. Now the router sends "100 Continue" before it waits for the
-          body. If the router refuses the request from its header, it sends the
-          final status and no 100. The router no longer sends the Expect field
-          to the upstream server.
+          body. It also sends it when a part of the body came with the header.
+          If the router refuses the request from its header, it sends the final
+          status and no 100. The router no longer sends the Expect field to the
+          upstream server.
 
        *) Bugfix: the PHP module read the target index of a request after the
-          request was released. As a result, the module called chdir(2) on
-          every request to a "script" target. A request could also run in the
-          directory of another target. This happened with 166 or more targets,
-          and after fastcgi_finish_request(). The bug is in the PHP module
-          since 1.18.0.
+          request was released. libunit fills released request memory with
+          0xA5. As a result, the module called chdir(2) on every request to a
+          "script" target. A request could also run in the directory of another
+          target. This happened with 166 or more targets, and after
+          fastcgi_finish_request() when the released memory already held a
+          request for another target. The bug is in the PHP module since
+          1.18.0.
 
        *) Bugfix: flush() in a PHP application did not send the response
-          header. The client got the header only at the end of the request, and
-          headers_sent() returned false after flush(). Now flush() sends the
-          header. As in mod_php, flush() does not empty the output buffers.
-          ob_flush() does. The PHP module has had no flush handler since 1.4.
+          header. If the application had no output yet, or its output was in an
+          output buffer, the client got the header only at the end of the
+          request, and headers_sent() returned false after flush(). Now flush()
+          sends the header. As in mod_php, flush() does not empty the output
+          buffers. ob_flush() does. The PHP module has had no flush handler
+          since 1.4.
 
        *) Bugfix: the router sent the header of a chunked HTTP/1.1 response
           without the empty line that ends it. It sent that line with the first
@@ -249,25 +273,31 @@ Full Changelog
           application processes after a reconfiguration, or the exit of the
           main process. One store runs at a time. A newer configuration waits,
           and only the latest one that waits is stored. At exit, the main
-          process waits for the store to finish. If a store fails, the main
+          process waits for the store to finish. If a newer configuration
+          waits, it stops the running store first. If a store fails, the main
           process writes an alert.
 
        *) Change: the child process of the previous entry also stores an
           uploaded certificate bundle. Its two fsync(2) calls no longer stop
           the main process. Unit answers the upload only when the bundle is on
           disk. A certificate deletion also runs in the child process, after
-          every earlier store.
+          every earlier store. If a controller process exits during a store,
+          Unit starts it again only when the store ends. Then the controller
+          reads the stored files.
 
        *) Bugfix: a regular expression in the configuration could run for up to
           10,000,000 match steps on one request. A match now stops after
           100,000 steps, and the request gets a 500 response. The error log
-          gets a warning with the pattern and the length of the subject. In
-          "compression" "types", a match that stops is not a match, so the
-          response is not compressed. A subject much longer than 8 KiB can
-          reach the limit when the pattern has a repeated group. With PCRE 1,
+          gets a warning with the pattern and the length of the subject, but
+          not the subject. In "compression" "types", a match that stops is not
+          a match, so the response is not compressed. A repeated group takes
+          about 2 steps for each byte. So a subject much longer than 8 KiB can
+          reach the limit and get a 500 response. Such a subject needs a
+          "large_header_buffer_size" above its default of 8192. With PCRE 1,
           and with PCRE2 before 10.30, a match also stops at 2,000 nested
-          calls. There, a repeated group on a subject of more than about 1,000
-          bytes can get a 500 response.
+          calls, so it does not overflow the thread stack. There, a repeated
+          group on a subject of more than about 1,000 bytes can get a 500
+          response.
 
        *) Security: the wasm module did not check the offset that the malloc
           handler of the guest returned. A negative or large offset put the
@@ -308,8 +338,8 @@ Full Changelog
           now checks all of these.
 
        *) Bugfix: after 2^32 RPC registrations the stream counter wrapped and
-          gave out stream 0. Callers read stream 0 as a failure. Now Unit skips
-          stream 0.
+          gave out stream 0. Callers read it as a failure, but the registration
+          stayed. Now Unit skips stream 0.
 
        *) Security: the wasm module read the base address of the linear memory
           of the guest only once, at startup. A guest with a 64-bit memory
@@ -358,8 +388,10 @@ Full Changelog
           limit up to whole CPUs. Before, the default was the number of CPUs
           that unitd could run on. A container limited to 2 CPUs on a 64-CPU
           host started 64 router threads. Now it starts 2. A limit of 1.5 CPUs
-          gives 2 threads. An explicit "listen_threads" does not change. Unit
-          reads the limit once, when unitd starts. It does not read cgroup v1.
+          gives 2 threads. An explicit "listen_threads" does not change. With a
+          private cgroup namespace, Unit sees only the limits inside the
+          namespace. Unit reads the limit once, when unitd starts. It does not
+          read cgroup v1.
 
        *) Bugfix: Unit sent two Content-Length fields to the upstream server.
           This happened for a proxied request with a chunked body, and for an
@@ -390,11 +422,7 @@ Full Changelog
           gives. QUIT, CHANGE_FILE and ACCESS_LOG must come from main.
           REMOVE_PID must come from main or from a prototype. DATA, APP_RESTART
           and STATUS must come from the controller. For a refused message, the
-          router closes the descriptors and does not reply. This makes the
-          attack harder, but it does not stop the attack yet. The router reads
-          the pid of main and of the controller from the ports that NEW_PORT
-          registers. An application can still send a false NEW_PORT first. A
-          later change will check NEW_PORT.
+          router closes the descriptors and does not reply.
 
        *) Security: an application process could send a false NEW_PORT to the
           router. With it, the process could register its own pid as main or as
@@ -442,9 +470,9 @@ Full Changelog
           freed. The alert is gone.
 
        *) Bugfix: a router thread could fail to allocate the listen event while
-          Unit added a listener. Then a configuration request could wait for
-          without end, or a listening socket that several router threads shared could
-          close too early. If the thread had no free connection slot, the
+          Unit added a listener. Then a configuration request could wait
+          without end, or a listening socket that several router threads shared
+          could close too early. If the thread had no free connection slot, the
           listener never accepted connections. Now the request completes. A
           listener without a free slot starts to accept connections when a slot
           is free.
@@ -516,17 +544,17 @@ Full Changelog
           "settings/http" set a minimum client rate in bytes per second on
           HTTP/1 connections. The timers body_read_timeout and send_timeout
           start again after each read or write. So a client that sent or read
-          one byte before each timeout kept a connection for ever. Now, after a
-          grace time equal to the related timeout, a client below the rate gets
-          408 (body) or the connection closes (response). Unit checks the rate
-          for each window of at least the grace time. Bytes sent early give no
-          credit for a slow transfer later. The default is 0, which disables
-          the check. For body_min_rate, 256 is a good value. send_min_rate
-          counts the bytes that the kernel accepts into the socket send buffer.
-          The kernel sizes this buffer to the link, so the rate is near the
-          real download rate of the client. A floor above the bandwidth of
-          honest slow clients stops their downloads. Use a small value, for
-          example 16384.
+          one byte before each timeout kept a connection without end. Now,
+          after a grace time equal to the related timeout, a client below the
+          rate gets 408 (body) or the connection closes (response). Unit checks
+          the rate for each window of at least the grace time. Bytes sent early
+          give no credit for a slow transfer later. The default is 0, which
+          disables the check. For body_min_rate, 256 is a good value.
+          send_min_rate counts the bytes that the kernel accepts into the
+          socket send buffer. The kernel sizes this buffer to the link, so the
+          rate is near the real download rate of the client. A floor above the
+          bandwidth of honest slow clients stops their downloads. Use a small
+          value, for example 16384.
 
        *) Feature: the --hardening=[off|default|strict] configure option adds
           compiler and linker hardening flags. Unit probes each flag. A
@@ -544,10 +572,12 @@ Full Changelog
           applies the configuration again before it answers. New handshakes get
           the new certificate. Accepted connections finish with the old
           certificate. An external ACME client can renew a certificate with one
-          request and no restart. For more information, see "Automatic
-          renewal with an ACME client" in the certificates page. Unit refuses
-          a bundle of more than 1 MiB with 413. The router opens bundles
-          read-only.
+          request and no restart. For more information, see "Automatic renewal
+          with an ACME client" on the certificates page. Unit refuses a bundle
+          of more than 1 MiB with 413, and a name of more than 255 bytes with
+          400. This applies to PUT and to DELETE. If a bundle has the same
+          certificates as the stored bundle, Unit does not store it again and
+          does not reconfigure. The router opens bundles read-only.
 
        *) Bugfix: the router leaked the TLS contexts that it built for a new
           configuration when Unit failed later to apply that configuration, for
@@ -672,16 +702,18 @@ Full Changelog
           the next poll at the latest, and that is after the memory pool of the
           port is released. The commit then read freed memory. It could also
           name a descriptor number that the kernel had given to another user. A
-          port now drops its pending changes before Unit frees it (#414).
+          port now drops its pending changes before Unit frees it
+          (https://github.com/freeunitorg/freeunit/issues/414).
 
-       *) Bugfix: a process could stop hearing from a peer for ever. The
+       *) Bugfix: a process could stop hearing from a peer without end. The
           wake-up tells a peer to read the shared queue. When this wake-up
           failed because the kernel could not allocate memory, the port treated
           the peer as dead. The port dropped the wake-up. A later message
           raises a wake-up only when the queue was empty. So no later message
           on that port raised a wake-up. Unit now keeps the wake-up and tries
           it again. The new try does not wait for a socket event. A socket that
-          never filled up does not give such an event (#392).
+          never filled up does not give such an event
+          (https://github.com/freeunitorg/freeunit/issues/392).
 
        *) Security: a port message was queued when the socket of the peer was
           not writable. The queued message borrowed the descriptors that it
@@ -689,7 +721,8 @@ Full Changelog
           port. If a port closed before the queue drained, the deferred
           sendmsg() named a closed number, or an unrelated descriptor that
           reused it. The queued copy now owns duplicates of the descriptors and
-          closes them after the send (#388).
+          closes them after the send
+          (https://github.com/freeunitorg/freeunit/issues/388).
 
        *) Bugfix: the router died on the first request after a configuration
           that had a "compression" block was replaced by one that had none. The
@@ -699,7 +732,8 @@ Full Changelog
           pool. Unit now holds the state for each configuration and reaches it
           through the request. A response keeps the compressor that it already
           uses. A body that is still in compression when the configuration is
-          replaced also finishes (#167).
+          replaced also finishes
+          (https://github.com/freeunitorg/freeunit/issues/167).
 
        *) Bugfix: a static response that is subject to content negotiation now
           has "Vary: Accept-Encoding". Without this header, a shared cache could
@@ -788,13 +822,13 @@ Full Changelog
        *) Security: a file descriptor that was sent to a port is no longer
           leaked when nothing takes ownership of it. An application has the
           write end of the main port of the router. The message header is not
-          authenticated. A compromised application could attach a descriptor
-          to a message that does not expect one, or to a fragment that never
+          authenticated. A compromised application could attach a descriptor to
+          a message that does not expect one, or to a fragment that never
           reaches a handler. Then the descriptor table of the router became
-          full, and every application behind it stopped. A fragment stream
-          that starts and does not complete still keeps its descriptor. This
-          needs a limit on pending fragments. The issue is
-          https://github.com/freeunitorg/freeunit/issues/343
+          full, and every application behind it stopped. A fragment stream that
+          starts and does not complete still keeps its descriptor. This needs a
+          limit on pending fragments. The issue
+          https://github.com/freeunitorg/freeunit/issues/343 tracks this.
 
        *) Bugfix: unitctl stopped when it could not decode a configuration as
           UTF-8. Unit stores the bytes that it gets. A configuration can hold
@@ -857,10 +891,10 @@ Full Changelog
        *) Bugfix: eight places did not take back a message when the port
           refused it. No other code frees the memory of these messages. The
           port layer accepts a buffer only when it answers success. A port
-          refuses a message when memory is full, or when the receiving process
-          does not read a full shared queue. In this case the memory was
-          lost. Two of the places lost shared memory that no cleanup frees.
-          An application could lose the capacity to answer.
+          refuses a message when memory runs out, or when the receiving process
+          does not read a full shared queue. In this case the memory was lost.
+          Two of the places lost shared memory that no cleanup frees. An
+          application could lose the capacity to answer.
 
        *) Change: Unit now closes a WebSocket connection when it cannot give a
           frame to the application. Before, Unit dropped such a frame and
@@ -884,7 +918,7 @@ Full Changelog
 
        *) Bugfix: an application worker that died before it finished the start
           was not reported. The start that Unit made it for stayed pending
-          for ever. When the application reached its "processes" maximum, it
+          without end. When the application reached its "processes" maximum, it
           did not start more processes. The default of the "timeout" of an
           application is 0. Because of this, the requests that waited for the
           application hung and did not fail.
@@ -911,12 +945,12 @@ Full Changelog
           These cases do not change:
 
           - A process has an empty permitted, effective and ambient set. This
-            is each process of a root unitd after it switches away from uid
-            0. It is also each process of an unprivileged unitd that has no
+            is each process of a root unitd after it switches away from uid 0.
+            It is also each process of an unprivileged unitd that has no
             capabilities. Such a process has nothing to inherit. Unit also
-            empties its inheritable set. This does not count as a change. It
-            grants nothing without an execve() of a file that has a matching
-            capability.
+            empties its inheritable set. An inheritable set alone does not
+            count as a capability. It grants nothing without an execve() of a
+            file that has a matching capability.
           - The main process keeps its capabilities. It needs
             CAP_NET_BIND_SERVICE to bind the listening sockets at each
             reconfiguration.
@@ -1056,15 +1090,16 @@ Full Changelog
 
        *) Bugfix: the java module sent nothing through the asynchronous
           WebSocket remote. This is true for each send from getAsyncRemote():
-          sendText(), sendBinary() and sendObject(), with a SendHandler or
-          with the Future that they return. Each send ended in a doWrite()
-          that had no body. No frame left. The handler was not called, and
-          Future.get() blocked for ever. getBasicRemote() uses a different
-          path and was not affected.
+          sendText(), sendBinary() and sendObject(), with a SendHandler or with
+          the Future that they return. Each send ended in a doWrite() that had
+          no body. No frame left. The handler was not called, and Future.get()
+          blocked without end. getBasicRemote() uses a different path and was
+          not affected.
 
           Such a send now works like a send from the blocking remote. The
           handler or the future completes on the sending thread with the
-          result. The result is a failure when the session is closed (#434).
+          result. The result is a failure when the session is closed
+          (https://github.com/freeunitorg/freeunit/issues/434).
 
           Batching also works now. flushBatch() and setBatchingAllowed(false)
           threw an exception and did not send the batched data. A batched
@@ -1074,12 +1109,13 @@ Full Changelog
 
        *) Bugfix: the java module sent wrong bytes, or no bytes, for a
           WebSocket message from a heap ByteBuffer that does not start at the
-          first byte of its array. The module read the payload from the
-          backing array at position() and ignored arrayOffset(). A buffer
-          from ByteBuffer.wrap(a, off, n).slice() sent bytes from the start of
-          the array, not its own bytes. A read-only heap buffer threw
-          ReadOnlyBufferException and was not sent. The blocking remote and
-          the asynchronous remote were both affected (#486).
+          first byte of its array. The module read the payload from the backing
+          array at position() and ignored arrayOffset(). A buffer from
+          ByteBuffer.wrap(a, off, n).slice() sent bytes from the start of the
+          array, not its own bytes. A read-only heap buffer threw
+          ReadOnlyBufferException and was not sent. The blocking remote and the
+          asynchronous remote were both affected
+          (https://github.com/freeunitorg/freeunit/issues/486).
 
        *) Bugfix: the Python ASGI module refused a WebSocket message larger
           than 1 MB for any value of "max_frame_size". The module had a
@@ -1227,17 +1263,18 @@ Full Changelog
           served it as an empty 200 response. The bug is in the PHP module
           since 0.4.
 
-       *) Change: the Java module now bundles Apache Tomcat 9.0.122 (from
-          9.0.121). The upstream release fixes CVE-2026-87022 (WebSocket
+       *) Change: the Java module now bundles Apache Tomcat 9.0.122. Before, it
+          bundled 9.0.121. The upstream release fixes CVE-2026-87022 (WebSocket
           message smuggling with per-message-deflate) and eleven other CVEs.
           None of the twelve fixes is in a jar that FreeUnit bundles. The
-          FreeUnit WebSocket code is derived from Tomcat, but it does not
-          decompress received frames, so CVE-2026-87022 does not affect it.
+          WebSocket code of FreeUnit comes from Tomcat, but it does not
+          decompress received frames. So CVE-2026-87022 does not affect
+          FreeUnit.
 
        *) Feature: Docker images for Go 1.27, Perl 5.44 and Java 27. The Java
-          images are now based on Ubuntu 26.04 (resolute) instead of 24.04
-          (noble), because Eclipse Temurin publishes Java 27 only for 26.04.
+          images now use Ubuntu 26.04 (resolute) instead of 24.04 (noble).
+          Eclipse Temurin publishes Java 27 only for 26.04.
 
        *) Change: the Docker images now install the pending updates of their
-          base image when they are built. Before, an image kept the packages
-          of its base image as they were when that image was published.
+          base image when they are built. Before, an image kept the packages of
+          its base image as they were when the base image was published.
