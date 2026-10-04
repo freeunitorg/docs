@@ -49,6 +49,12 @@ which one could crash or confuse a privileged process:
 - The string form of the ``access_log`` ``format`` escapes the bytes that a
   variable expands to, the way nginx does.  Before, a request for
   ``/%0d%0a...`` could add a false record to the log.
+- The object form of the ``access_log`` ``format`` escapes every value.
+  Before, a request header with a quote could close a member and add
+  members to the record.  A variable in a member name is no longer
+  expanded; the name is written as configured.  The object form also
+  writes U+FFFD for each byte that begins no valid UTF-8 sequence, so the
+  record stays valid JSON.
 - unitctl no longer depends on rustls-pemfile or on the HTTP/2 support of
   hyper.  This closes RUSTSEC-2025-0134 and RUSTSEC-2026-0258.
 
@@ -147,7 +153,7 @@ See :ref:`configuration-share-caching`.
 
 - Java: a WebSocket text message is no longer split into 8 KiB frames, the
   asynchronous remote now sends, and a ``ByteBuffer`` slice sends its own
-  bytes.
+  bytes.  The module bundles Apache Tomcat 9.0.122.
 - Python ASGI: a WebSocket message larger than 1 MB is no longer refused;
   the limit is ``max_frame_size``.
 - PHP: ``flush()`` now sends the response header.  A ``script`` must be in
@@ -169,6 +175,13 @@ See :ref:`configuration-share-caching`.
 - The GnuTLS, CyaSSL and PolarSSL backends, the fiber implementation, the
   job cluster, ``nxt_mem_zone`` and other code that the build never used are
   removed.
+
+**Docker images**
+
+- New images for Go 1.27, Perl 5.44 and Java 27.  The Java images are now
+  based on Ubuntu 26.04 (resolute) instead of 24.04 (noble).
+- The images install the pending updates of their base image when they are
+  built.
 
 **unitctl**
 
