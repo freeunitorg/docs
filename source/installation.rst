@@ -1934,7 +1934,7 @@ Tag format: :samp:`{VERSION}-{VARIANT}` (pinned) or :samp:`latest-{VARIANT}` (ro
 
    Older images used variant names without the hyphen,
    such as ``php8.4`` or ``jsc21``.
-   Their ``latest-`` tags still exist, but they are no longer updated.
+   Their ``latest-`` tags still exist, but FreeUnit no longer updates them.
    Use the hyphenated names.
 
 To pull and run an image:
