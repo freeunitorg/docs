@@ -737,7 +737,7 @@ FreeUnit compiles and runs on various Unix-like operating systems, including:
 
 - FreeBSD || 10 or later
 - Linux || 2.6 or later
-- macOS || 10.6 or later
+- macOS || 10.7 or later
 - Solaris || 11
 
 App languages and platforms that FreeUnit can run:

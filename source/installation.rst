@@ -58,7 +58,7 @@ Unit compiles and runs on various Unix-like operating systems, including:
 
 - FreeBSD |_| 10 or later
 - Linux |_| 2.6 or later
-- macOS |_| 10.6 or later
+- macOS |_| 10.7 or later
 - Solaris |_| 11
 
 It also supports most modern instruction set architectures, such as:
