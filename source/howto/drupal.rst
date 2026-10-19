@@ -232,6 +232,92 @@ Unit:
      :width: 100%
      :alt: Drupal on Unit - Setup Screen
 
+.. _howto-drupal-settings:
+
+********************
+Recommended settings
+********************
+
+Most defaults suit |app|.  Change only the settings below.
+
+Opcache
+=======
+
+Put the opcache and JIT settings (**opcache.memory_consumption**,
+**opcache.jit**, **opcache.jit_buffer_size**) and **opcache.preload** in the
+**php.ini** file
+that the **file** :ref:`option <configuration-php-options>` names.  Unit passes
+that path to PHP, and PHP reads the file at startup:
+
+.. code-block:: ini
+
+   opcache.memory_consumption=256
+   opcache.jit=tracing
+   opcache.jit_buffer_size=128M
+   opcache.preload=:nxt_ph:`/path/to/app/preload.php <Path to your preload script>`
+   opcache.preload_user=:nxt_ph:`app-user <The user that the application runs as>`
+
+If unitd starts as root, **opcache.preload** also needs
+**opcache.preload_user**: PHP refuses to preload as root, and it runs the
+preload before Unit switches to the application's **user**.  The preload makes
+classes and functions available to requests, but constants that the script
+sets with **define()** are not.
+
+PHP reads the three settings below only at startup.  Unit applies **admin**
+and **user** after PHP starts, so they do not work there:
+
+- **opcache.memory_consumption** fails, Unit logs **setting PHP option ...
+  failed**, and the startup size stays.
+- **opcache.jit_buffer_size** is stored and **ini_get()** reports it, but the
+  JIT keeps the buffer size from startup.  On PHP 8.4 and later,
+  **opcache.jit** defaults to **disable**, so the buffer size alone does not
+  turn the JIT on.
+- **opcache.preload** is stored, but the script never runs.
+
+PHP reads its scan directory (**PHP_INI_SCAN_DIR**, often a **conf.d**
+directory) after the main **php.ini**, and the values there win.  Make sure the
+files there do not set the same opcache settings again.  To change or turn off
+the scan directory, set **PHP_INI_SCAN_DIR** in the **environment**
+:ref:`option <configuration-php-options>`; an empty value turns the scan off.
+
+All processes of one application share one opcache, so its size counts once
+per application, not once per process (see `Opcache and idle processes`_).
+
+In development, keep **opcache.validate_timestamps** at its default of 1.  PHP
+then checks a script for changes at most every 2 seconds (`opcache.revalidate_freq
+<https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.revalidate-freq>`__).
+
+In production, set **opcache.validate_timestamps=0** and
+:ref:`restart <configuration-proc-mgmt>` the application after each deploy:
+
+.. code-block:: console
+
+   # curl -X GET --unix-socket :nxt_ph:`/path/to/control.unit.sock <Path to Unit's control socket in your installation>` \
+         http://localhost/control/applications/drupal/restart
+
+The restart replaces the application prototype, so the new processes start
+with a cold opcache.
+
+Processes
+=========
+
+Without a **processes** :ref:`option <configuration-proc-mgmt-prcs>`, Unit
+runs one process, so one slow request blocks the site.  Set about as many
+processes as the host has CPU cores, as far as memory allows.  With dynamic
+processes, set **spare** to 1 or more, so the first request after an idle
+period does not wait for a new process to start.
+
+Router threads
+==============
+
+Leave **listen_threads** unset.  The default is the number of CPUs that Unit
+may run on: Unit follows the CPU affinity and, on Linux, the cgroup v2 CPU
+limit (**cpu.max**), which it reads once when unitd starts.  On a private
+benchmark host with one router CPU set of 4 CPUs, 4 threads served about 60
+percent more requests per second than 1 or 2 threads on small static
+responses.  Fewer threads used fewer router CPU cycles per request, but lower
+values gave no more throughput in those runs.
+
 ************************
 Cron and background work
 ************************
