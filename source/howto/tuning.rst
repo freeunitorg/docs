@@ -1,6 +1,6 @@
 .. meta::
    :og:description: Tune Linux kernel sysctl limits (file descriptors, epoll
-                    watches, TCP listen backlogs, ephemeral ports, AIO, VMAs,
+                    watches, TCP listen backlogs, ephemeral ports, VMAs,
                     and writeback ratios) and validate FreeUnit performance.
 
 .. include:: ../include/replace.rst
@@ -39,8 +39,9 @@ macOS.
 - Container runtimes (such as Docker) and service managers commonly start
   daemons with a low soft limit (for example, :samp:`1024`) and a high hard
   limit (such as :samp:`524288` or :samp:`1048576`).  Raising :samp:`rlim_cur`
-  in the router and controller prevents :samp:`accept4() failed (24: Too many
-  open files)` (**EMFILE**) alerts once concurrent connections exceed 1,000.
+  in the router and controller prevents **EMFILE** alerts such as
+  :samp:`accept4(<fd>) failed (24: Too many open files)` once concurrent
+  connections exceed 1,000.
 - The **main**, **discovery**, and **application worker** processes intentionally
   keep the soft limit that **unitd** started with.  Application code or
   libraries that rely on **select(2)** therefore retain a descriptor ceiling
@@ -66,7 +67,7 @@ system-wide file table exhaustion (**ENFILE**), **epoll** watch exhaustion
 Host Kernel and sysctl Reference
 ********************************
 
-The table below summarizes the ten primary Linux kernel parameters that affect
+The table below summarizes the primary Linux kernel parameters that affect
 FreeUnit under high concurrency or heavy connection churn:
 
 .. list-table::
@@ -112,11 +113,6 @@ FreeUnit under high concurrency or heavy connection churn:
      - :samp:`10240 65535`
      - Ephemeral source port range for outbound proxy connections and local load generators.
 
-   * - :samp:`fs.aio-max-nr`
-     - :samp:`65536`
-     - :samp:`262144` – :samp:`1048576`
-     - System-wide concurrent Linux AIO context ring slots.
-
    * - :samp:`vm.max_map_count`
      - :samp:`65530`
      - :samp:`>= 262144`
@@ -156,11 +152,11 @@ Why Each Parameter Affects FreeUnit Performance and Correctness
   process is well below its own :samp:`RLIMIT_NOFILE`.
 
 - **fs.epoll.max_user_watches** (:samp:`>= 1048576`):
-  Limits the total number of file descriptors a single non-root UID can
-  register across all **epoll** instances (each registered watch consumes roughly
-  90–160 bytes of kernel slab memory).  In FreeUnit, every router worker thread
-  runs its own **epoll** instance and registers every accepted client
-  connection, listener socket, and IPC port descriptor via
+  Limits the total number of file descriptors a single real UID can register
+  across all **epoll** instances (root is not exempt; each registered watch
+  consumes roughly 90–160 bytes of kernel slab memory).  In FreeUnit, every
+  router worker thread runs its own **epoll** instance and registers every
+  accepted client connection, listener socket, and IPC port descriptor via
   :samp:`epoll_ctl(EPOLL_CTL_ADD)`.  When :samp:`RLIMIT_NOFILE` permits hundreds
   of thousands of concurrent connections under the unprivileged **unitd** user,
   hitting :samp:`max_user_watches` causes **epoll_ctl(2)** to fail with
@@ -175,9 +171,9 @@ Why Each Parameter Affects FreeUnit Performance and Correctness
   fills past :samp:`somaxconn`, the kernel drops incoming ACKs or sends TCP
   **RST** (:samp:`TcpExtListenDrops` and :samp:`TcpExtListenOverflows`),
   producing failed requests and multi-millisecond p99 latency spikes even when
-  CPU and file descriptors are plentiful.  Pair this kernel setting with the
-  listener :ref:`backlog <configuration-listeners>` option in Unit's
-  configuration.
+  CPU and file descriptors are plentiful.  Unit passes :samp:`-1` (the OS
+  default) unless the listener :ref:`backlog <configuration-listeners>` option
+  is set, so by default this sysctl alone sizes the accept queue.
 
 - **net.ipv4.tcp_max_syn_backlog** (:samp:`8192` – :samp:`65535`):
   Bounds the per-listener queue of half-open (:samp:`SYN_RECV`) sockets waiting
@@ -204,23 +200,16 @@ Why Each Parameter Affects FreeUnit Performance and Correctness
   :samp:`EADDRNOTAVAIL (99: Cannot assign requested address)` or spend excessive
   kernel CPU scanning the inet hash table for a free four-tuple.
 
-- **fs.aio-max-nr** (:samp:`262144` – :samp:`1048576`):
-  Caps the total number of concurrent in-flight slots across kernel Linux AIO
-  rings (**io_setup(2)**).  On hosts where FreeUnit serves static assets with
-  asynchronous I/O or runs alongside storage/database services on the same
-  machine, raising :samp:`RLIMIT_NOFILE` without raising :samp:`fs.aio-max-nr`
-  causes **io_setup(2)** to fail with **EAGAIN** once concurrent async I/O
-  contexts exceed :samp:`65536`.
-
 - **vm.max_map_count** (:samp:`>= 262144`):
   Limits the number of distinct **mmap(2)** virtual memory areas (VMAs) a
   process may hold.  FreeUnit's router and application processes communicate
   over shared-memory port queues and pass request and response bodies via
-  on-demand **mmap(2)** shared-memory segments; language runtimes (PHP
-  OPcache/JIT, JVM, Python, Go, and Rust allocators) also allocate per-thread
-  arenas and guard pages.  Under high concurrency, hitting the default
-  :samp:`65530` VMA ceiling makes **mmap(2)** fail with **ENOMEM**, causing
-  shared-memory allocation failures in the router or worker crashes.
+  **mmap(2)** segments, but those segments are bounded per peer pair, reused,
+  and about 10 MiB each.  The main consumers are language runtimes (PHP
+  OPcache/JIT, JVM, Python, Go, and Rust allocators), which allocate per-thread
+  arenas and guard pages.  Hitting the ceiling makes **mmap(2)** fail with
+  **ENOMEM**; for FreeUnit the affected shared-memory buffer allocation fails
+  with an alert and the request fails.  It does not crash the worker.
 
 - **vm.dirty_background_ratio** / **vm.dirty_ratio** (:samp:`5` / :samp:`15`):
   Controls when kernel flusher threads begin asynchronous page-cache writeback
@@ -278,14 +267,16 @@ syscall or queue to the next.  Tune them as four coupled chains:
      (:samp:`netdev_max_backlog`), the half-open :samp:`SYN_RECV` table
      (:samp:`tcp_max_syn_backlog`), and the completed-handshake accept queue.
    - The kernel clamps a listener's accept queue depth to
-     :samp:`min(listener backlog, net.core.somaxconn)`.  Raising
-     :samp:`net.core.somaxconn` without raising the listener
-     :ref:`backlog <configuration-listeners>` in Unit's configuration (or vice
-     versa) leaves the smaller value in effect.  Likewise, enlarging the accept
-     queue while leaving :samp:`tcp_max_syn_backlog` or
-     :samp:`netdev_max_backlog` at small defaults simply moves burst packet drops
-     one stage earlier (:file:`/proc/net/softnet_stat` drops or SYN drops instead
-     of :samp:`TcpExtListenOverflows`).
+     :samp:`min(listener backlog, net.core.somaxconn)`.  Unit's default
+     :ref:`backlog <configuration-listeners>` of :samp:`-1` means the OS
+     default, so with the default configuration the effective accept queue is
+     :samp:`net.core.somaxconn` and raising that sysctl takes effect.  An
+     explicit backlog smaller than :samp:`net.core.somaxconn` caps the queue at
+     that value.  Likewise, enlarging the accept queue while leaving
+     :samp:`tcp_max_syn_backlog` or :samp:`netdev_max_backlog` at small
+     defaults simply moves burst packet drops one stage earlier
+     (:file:`/proc/net/softnet_stat` drops or SYN drops instead of
+     :samp:`TcpExtListenOverflows`).
 
 3. **Ephemeral ports vs. descriptor limits under connection churn**
    (:samp:`net.ipv4.ip_local_port_range` ↔ :samp:`RLIMIT_NOFILE` and :samp:`TIME_WAIT`):
@@ -301,13 +292,12 @@ syscall or queue to the next.  Tune them as four coupled chains:
      upstreams and benchmarks should therefore pair a wide port range with HTTP
      keep-alive connection pooling.
 
-4. **Concurrency vs. shared memory, async I/O, and page-cache writeback**
-   (:samp:`RLIMIT_NOFILE` ↔ :samp:`vm.max_map_count`, :samp:`fs.aio-max-nr`, and :samp:`vm.dirty_background_ratio` / :samp:`vm.dirty_ratio`):
+4. **Concurrency vs. shared memory and page-cache writeback**
+   (:samp:`RLIMIT_NOFILE` ↔ :samp:`vm.max_map_count` and :samp:`vm.dirty_background_ratio` / :samp:`vm.dirty_ratio`):
 
    - Raising connection concurrency and worker counts increases the number of
      shared-memory IPC port segments and allocator arenas mapped via **mmap(2)**
-     (:samp:`vm.max_map_count`) as well as concurrent kernel AIO ring slots
-     (:samp:`fs.aio-max-nr`).
+     (:samp:`vm.max_map_count`).
    - Higher request throughput also accelerates access-log and temporary body
      writes into the kernel page cache.  If :samp:`vm.dirty_background_ratio` and
      :samp:`vm.dirty_ratio` are left at :samp:`10` / :samp:`20`, large-RAM hosts
@@ -319,8 +309,9 @@ syscall or queue to the next.  Tune them as four coupled chains:
 
 .. _tuning-sysctl-config:
 
+**************************************
 Applying and Verifying sysctl Settings
-======================================
+**************************************
 
 Before writing a static profile, inspect the host's current values—especially
 memory-scaled defaults such as :samp:`fs.file-max` and
@@ -331,7 +322,7 @@ floor so applying the profile never lowers an already higher limit:
 
 .. code-block:: console
 
-   $ sysctl fs.nr_open fs.file-max fs.epoll.max_user_watches fs.aio-max-nr \
+   $ sysctl fs.nr_open fs.file-max fs.epoll.max_user_watches \
             net.core.somaxconn net.ipv4.tcp_max_syn_backlog \
             net.core.netdev_max_backlog net.ipv4.ip_local_port_range \
             vm.max_map_count vm.dirty_background_ratio vm.dirty_ratio
@@ -344,7 +335,6 @@ any value where the host's existing limit is already higher):
    fs.nr_open = 1048576
    fs.file-max = 2097152
    fs.epoll.max_user_watches = 1048576
-   fs.aio-max-nr = 524288
    net.core.somaxconn = 32768
    net.ipv4.tcp_max_syn_backlog = 32768
    net.core.netdev_max_backlog = 16384
@@ -361,7 +351,7 @@ occur under load:
    # sysctl --system
    $ ulimit -Sn && ulimit -Hn
    $ nstat -az TcpExtListenOverflows TcpExtListenDrops
-   $ awk '{print strtonum("0x"$2)}' /proc/net/softnet_stat
+   $ awk '{print $2}' /proc/net/softnet_stat | while read -r drops; do printf '%d\n' "0x$drops"; done
 
 
 .. _tuning-methodology:
@@ -435,8 +425,10 @@ Measurement Rules
      several percent of variance; restrict deep C-states separately via
      **cpupower-idle-set(1)** (for example, :samp:`cpupower idle-set -D 10`),
      per-state :file:`/sys/devices/system/cpu/cpu*/cpuidle/state*/disable`
-     knobs, or holding :file:`/dev/cpu_dma_latency` open during the benchmark
-     window.
+     knobs, or the :file:`/dev/cpu_dma_latency` PM QoS device: write a signed
+     32-bit zero (four zero bytes) to the open descriptor for a
+     zero-microsecond latency bound, and keep it open for the benchmark
+     window; closing it releases the constraint.
 
 3. **Establish the A/A noise floor first.**
    Before comparing two configurations (*A* vs. *B*), run the exact protocol
