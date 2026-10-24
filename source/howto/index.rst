@@ -21,6 +21,7 @@ experience with Unit.
    Language Modules <modules>
    samples
    security
+   tuning
    walkthrough
 
 - :doc:`docker`: Configure a standalone Unit or a Unit-run app in a Docker
@@ -43,6 +44,9 @@ experience with Unit.
   supported by Unit.
 
 - :doc:`security`: Recommendations and considerations for hardening Unit.
+
+- :doc:`tuning`: Host kernel **sysctl** parameters and benchmarking methodology
+  for high-concurrency deployments.
 
 - :doc:`walkthrough`: Follow an end-to-end guide to application configuration
   in Unit.
