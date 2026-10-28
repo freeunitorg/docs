@@ -45,8 +45,8 @@ experience with Unit.
 
 - :doc:`security`: Recommendations and considerations for hardening Unit.
 
-- :doc:`tuning`: Host kernel **sysctl** parameters and benchmarking methodology
-  for high-concurrency deployments.
+- :doc:`tuning`: Diagnose Linux resource limits, apply reversible production
+  changes, and run reproducible performance benchmarks.
 
 - :doc:`walkthrough`: Follow an end-to-end guide to application configuration
   in Unit.
