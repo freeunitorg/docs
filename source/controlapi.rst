@@ -350,9 +350,9 @@ The API supports the following HTTP methods:
        in the HTTP response body.
 
 Before a change,
-Unit checks the difference it makes in the entire configuration;
-if there's none,
-nothing is done.
+Unit compares the new configuration with the running one:
+an application with an identical configuration is not restarted,
+and a listener whose address is unchanged keeps its listening socket.
 Thus, you can't restart an app
 by reuploading its unchanged configuration
 (but there's a
