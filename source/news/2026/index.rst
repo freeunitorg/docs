@@ -7,6 +7,17 @@ News archive for the year 2026.
 
 .. nxt_news_entry::
    :author: FreeUnit Team
+   :description: Optional PCRE2 regex JIT and USDT tracing probes;
+                 HTTP, compression and application queue fixes;
+                 Wasmtime 48.0.7; PHP image hardening and release checks.
+                 Both new build options are off by default.
+   :email: team@freeunit.org
+   :title: FreeUnit 1.37.1 Released
+   :url: news/2026/unit-1.37.1-released
+   :date: 2026-10-30
+
+.. nxt_news_entry::
+   :author: FreeUnit Team
    :description: Byte-range and conditional requests for static files;
                  certificate replacement without a restart; hardening of the
                  messages between Unit's processes; Accept-Encoding
