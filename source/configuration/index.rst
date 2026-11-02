@@ -3296,6 +3296,9 @@ Unit skips precondition checks to avoid comparing against overridden values.
 If a request contains a satisfiable **Range** header naming a single byte range,
 Unit returns a 206 "Partial Content" response with a **Content-Range** header.
 Compression is skipped for range responses.
+Unit does not compress a 206 response from an application either
+*(since 1.37.2)*;
+see :ref:`configuration-compression`.
 If the requested range lies outside the file size,
 Unit returns a 416 "Range Not Satisfiable" response.
 If a request specifies multiple ranges,
@@ -5803,6 +5806,13 @@ In turn, the **http** option exposes the following settings:
 
         *(since 1.33.0)*
 
+    * - **compression**
+      - Object;
+        turns on response compression
+        and sets its options; see :ref:`configuration-compression`.
+
+        *(since 1.35.0)*
+
     * - **discard_unsafe_fields**
       - Boolean;
         controls header field name parsing.
@@ -6039,6 +6049,207 @@ Example:
             "sampling_ratio": 1.0
         }
     },
+
+.. _configuration-compression:
+
+====================
+Response compression
+====================
+
+The **compression** object in **http** settings
+turns on response compression:
+
+.. list-table::
+    :header-rows: 1
+
+    * - Option
+      - Description
+
+    * - **compressors** (required)
+      - Object or array of objects;
+        lists the enabled codings.
+        Each object takes the options in the next table.
+
+    * - **types**
+      - String or array of strings;
+        lists the MIME types that Unit compresses.
+        A pattern follows the same rules as in a route **match**,
+        including the **!** prefix for negation.
+        By default, Unit compresses a response of any type.
+        Unit never compresses a response that has no media type.
+
+Each object in **compressors** has these options:
+
+.. list-table::
+    :header-rows: 1
+
+    * - Option
+      - Description
+
+    * - **encoding** (required)
+      - String;
+        the coding name: **gzip**, **deflate**, **zstd**, or **br**.
+        The names **zstd** and **br** work only
+        if Unit was built with zstd or Brotli support.
+
+    * - **level**
+      - Integer;
+        the compression level; see the table below.
+        If the number is out of range for the coding,
+        Unit writes a notice to the log
+        and uses the default level.
+
+    * - **min_length**
+      - Integer;
+        the smallest body, in bytes,
+        that Unit compresses with this coding.
+        Unit applies it only to a response of known length.
+        A response of unknown length is compressed
+        whatever **min_length** says *(since 1.37.2)*.
+        By default, there is no minimum.
+
+The level range depends on the coding:
+
+.. list-table::
+    :header-rows: 1
+
+    * - Coding
+      - Range
+      - Default
+      - Note
+
+    * - **gzip**, **deflate**
+      - -1 to 9
+      - -1 (zlib default)
+      -
+
+    * - **zstd**
+      - -7 to 22
+      - 3
+      -
+
+    * - **br**
+      - 0 to 11
+      - 11
+      - Unit uses at most level 5
+        for a response of unknown length *(since 1.37.2)*.
+
+Example:
+
+.. code-block:: json
+
+    "settings": {
+        "http": {
+            "compression": {
+                "types": [
+                    "text/*",
+                    "application/json"
+                ],
+
+                "compressors": [
+                    {
+                        "encoding": "br",
+                        "level": 5,
+                        "min_length": 1024
+                    },
+                    {
+                        "encoding": "gzip",
+                        "min_length": 1024
+                    }
+                ]
+            }
+        }
+    }
+
+Unit picks the coding from the **Accept-Encoding** request field
+and compresses a response when all of these are true:
+
+- The response has a media type that matches **types**.
+- The response has no **Content-Encoding** field.
+  This holds also when **response_headers** sets or removes
+  **Content-Encoding**;
+  see :ref:`configuration-response-headers`.
+- The length of the body is not 0.
+- The status is not 1XX, 204, 206, or 304.
+- For a response of known length,
+  the length is at least **min_length** of the chosen coding.
+
+Unit compresses a response of unknown length
+and sends it with chunked transfer coding *(since 1.37.2)*.
+A response has an unknown length
+when the application sends no **Content-Length**,
+for example a streamed response or the output of a PHP script.
+Before 1.37.2, Unit never compressed such a response.
+
+Unit does not compress a 206 response from an application
+*(since 1.37.2)*.
+Its **Content-Range** counts the bytes of the uncompressed body,
+so a compressed body would not match it.
+Before 1.37.2, Unit compressed the body and kept the **Content-Range**.
+For a static file, Unit does not compress a range response;
+see :ref:`configuration-return`.
+
+If the client refuses the identity coding
+(for example ``Accept-Encoding: gzip, identity;q=0``)
+and Unit sends the body without compression,
+Unit returns a 406 "Not Acceptable" response.
+This includes a response of unknown length and a 206 response
+*(since 1.37.2)*.
+The 406 response has the **Vary: Accept-Encoding** field.
+
+When Unit compresses a response:
+
+- Unit adds a **Content-Encoding** field with the chosen coding.
+- Unit adds **Accept-Encoding** to **Vary**,
+  or creates **Vary** if the response has none.
+- Unit changes a strong **ETag** to a weak one (``W/"..."``).
+- Unit removes **Content-Length** from the response.
+
+Unit adds **Vary: Accept-Encoding** only to a response
+that went through the choice of a coding.
+A response that **types** excludes does not get it.
+A 406 response always gets it,
+because the 406 depends on **Accept-Encoding**.
+This includes a 406 for a response that **types** excludes
+or for an application's 206.
+
+**Memory**
+
+Each open compressed response holds the state of its compressor
+until the response ends.
+The size depends on the coding and on whether the length is known.
+For a response of known length,
+Unit shrinks the window to the size of the body.
+
+.. list-table::
+    :header-rows: 1
+
+    * - Coding
+      - Unknown length *(since 1.37.2)*
+      - Known length
+
+    * - **gzip**, **deflate**
+      - 4 KiB window (zlib windowBits 12), memLevel 6;
+        about 54 KiB per stream
+      - 32 KiB window (windowBits 15), memLevel 8,
+        shrunk down to a 512-byte window for a small body
+
+    * - **zstd**
+      - windowLog 17 (128 KiB window)
+      - windowLog from 10 up to 21 (2 MiB window), shrunk to the body
+
+    * - **br**
+      - 512 KiB window (19 bits), level at most 5
+      - 512 KiB window at most (19 bits), the length is a size hint,
+        the configured level applies
+
+FreeUnit measured the state of one 8 MiB stream as about 54 KiB for gzip,
+1.7 MB for zstd, and 2.3 MB for Brotli.
+The size grows with the number of open streams,
+so a server with many slow streamed responses needs more memory.
+These numbers come from the 1.37.2 release notes in the FreeUnit repository;
+the documentation build did not measure them again.
+
 
 .. _configuration-min-rate:
 
