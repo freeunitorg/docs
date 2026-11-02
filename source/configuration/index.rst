@@ -2287,6 +2287,11 @@ before the action is taken:
 This works only for the **2XX** and **3XX** responses;
 also, **Date**, **Server**, and **Content-Length** can't be set.
 
+When Unit compresses a response,
+it removes **Accept-Ranges** even if **response_headers** sets it
+*(since 1.37.2)*;
+see :ref:`configuration-compression`.
+
 The option sets given string values
 for the header fields of the response
 that Unit will send for the specific request:
@@ -3233,6 +3238,9 @@ Unit adds validator headers to the response:
 
 - **Accept-Ranges**:
   Set to ``bytes`` to advertise support for byte-range requests.
+  Unit removes this field when it compresses the response
+  *(since 1.37.2)*.
+  An uncompressed range response retains ``Accept-Ranges: bytes``.
 
 .. note::
 
@@ -6188,6 +6196,13 @@ so a compressed body would not match it.
 Before 1.37.2, Unit compressed the body and kept the **Content-Range**.
 For a static file, Unit does not compress a range response;
 see :ref:`configuration-return`.
+
+When Unit applies compression,
+it removes every **Accept-Ranges** response field *(since 1.37.2)*,
+including fields supplied by an application or **response_headers**.
+Unit does not serve byte ranges of the representation it compresses.
+This removal does not apply to a response already encoded by the application
+or given a **Content-Encoding** by **response_headers**.
 
 If the client refuses the identity coding
 (for example ``Accept-Encoding: gzip, identity;q=0``)
