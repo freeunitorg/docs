@@ -306,6 +306,14 @@ certificate. After each renewal, the ACME client runs a deploy hook.
 The hook uploads the new bundle through the control API, using the
 :ref:`replace behavior <configuration-ssl-replace>` described above.
 
+.. warning::
+
+   The hook below requires Unit 1.37.0 or later. On 1.36.1 and earlier,
+   the **PUT** to an existing name fails, the hook fails, and the old
+   certificate stays in use until it expires. Without a check of the
+   ACME client log, you may not notice this. For those versions, follow
+   `Renewal on Unit 1.36.1 and earlier`_.
+
 The hook needs only :program:`curl` and write access to the control
 socket. It uploads the renewed bundle under the same name every time:
 
@@ -329,9 +337,14 @@ socket. It uploads the renewed bundle under the same name every time:
 Install it as :file:`/usr/local/sbin/freeunit-deploy-hook`, mode
 ``0755``. Set ``UNIT_CONTROL`` when the control socket isn't
 :file:`/var/run/unit/control.sock`. On Debian and Ubuntu packages it is
-:file:`/var/run/unit/control.freeunit.sock`. With **-f**,
+:file:`/var/run/unit/control.freeunit.sock`. On Alpine, with the
+**freeunit** package, it is :file:`/run/control.unit.sock`. With **-f**,
 :program:`curl` exits with an error on any answer of 400 or above, so
 the ACME client reports a failed upload.
+
+The ACME client runs the hook as root. Certbot does this by default.
+Root can write to the control socket. If you run the hook as another
+user, give that user write access to the socket.
 
 Both clients need an HTTP-01 route to prove domain ownership, unless
 you use a DNS challenge. HTTP-01 is the ACME challenge type where the
@@ -365,8 +378,12 @@ directory with **share**:
        }
    }
 
-The router runs as the **--user** user. It must be able to read the
-token files and to enter every directory above them. Leave out the
+The router runs as the **--user** user. The webroot needs to be
+readable only by this user. The user must also be able to enter every
+directory above the token files. If a site already uses the listener on
+port 80, keep the challenge route first in the route list. Unit
+checks the routes in order, so a broader route before it would answer
+the challenge request. Leave out the
 **\*:443** listener until the first bundle exists. Unit refuses a
 configuration where a listener names a missing certificate.
 
@@ -453,7 +470,10 @@ With cron instead of systemd:
 certbot
 *******
 
-:program:`certbot` sets the variables that the hook reads, so it needs
+.. _configuration-ssl-acme-certbot:
+
+For a step-by-step guide, including IP address certificates, see
+:doc:`howto/certbot`. :program:`certbot` sets the variables that the hook reads, so it needs
 no wrapper:
 
 .. code-block:: console
@@ -470,7 +490,21 @@ for the hook. The hook above reads ``RENEWED_LINEAGE``. The symlink
 above makes certbot run the hook after every renewal, including the
 ones that :file:`certbot.timer` runs automatically. Most Linux
 distributions install and enable that timer with the certbot package,
-so certbot needs no separate cron job or systemd timer.
+so certbot needs no separate cron job or systemd timer. On a system
+without that timer, such as Alpine, add this line to root's crontab
+(:command:`crontab -e` as root). A user crontab, which BusyBox cron on
+Alpine uses, has no user field:
+
+.. code-block:: console
+
+   17 */6 * * * /usr/bin/certbot renew -q
+
+In a system crontab such as :file:`/etc/crontab`, add the user field
+**root** after the time fields.
+
+Run :program:`certbot renew` at least daily. Run it every few hours for
+short-lived certificates. Certbot renews only the certificates that are
+due.
 
 .. note::
 

@@ -1232,9 +1232,14 @@ Community Repositories
 
    .. tab:: Alpine
 
-      To install Unit's core executables
-      from the Alpine Linux
-      `packages <https://pkgs.alpinelinux.org/packages?name=unit*>`_:
+      The Alpine Linux
+      `packages <https://pkgs.alpinelinux.org/packages?name=freeunit*>`_
+      are named **freeunit**, not **unit**.
+      Alpine 3.24 ships FreeUnit 1.36.1.
+      Version 1.37.x is in Alpine edge only.
+      To get 1.37.x on a release branch, :ref:`build from source
+      <source-alpine>`.
+      To install FreeUnit's core executables:
 
       .. code-block:: console
 
@@ -1246,18 +1251,18 @@ Community Repositories
 
       .. code-block:: console
 
-         # apk add unit
+         # apk add freeunit
 
       To install service manager files
       and specific language modules:
 
       .. code-block:: console
 
-         # apk add unit-openrc unit-perl unit-php7 unit-python3 unit-ruby
+         # apk add freeunit-openrc freeunit-perl freeunit-php85 freeunit-python3 freeunit-ruby
 
       .. code-block:: console
 
-         # service unit restart  # Necessary for Unit to pick up any changes in language module setup
+         # service freeunit restart  # Necessary for Unit to pick up any changes in language module setup
 
       Runtime details:
 
@@ -1275,19 +1280,19 @@ Community Repositories
          * - Startup and shutdown
            - .. code-block:: console
 
-                # :nxt_hint:`service unit enable <Enable Unit to launch automatically at system startup>`
+                # :nxt_hint:`service freeunit enable <Enable Unit to launch automatically at system startup>`
 
              .. code-block:: console
 
-                # :nxt_hint:`service unit restart <Start or restart Unit; one-time action>`
+                # :nxt_hint:`service freeunit restart <Start or restart Unit; one-time action>`
 
              .. code-block:: console
 
-                # :nxt_hint:`service unit stop <Stop a running Unit; one-time action>`
+                # :nxt_hint:`service freeunit stop <Stop a running Unit; one-time action>`
 
              .. code-block:: console
 
-                # :nxt_hint:`service unit disable <Disable Unit's automatic startup>`
+                # :nxt_hint:`service freeunit disable <Disable Unit's automatic startup>`
 
 
    .. tab:: ALT
@@ -2114,3 +2119,34 @@ refer to the
 :doc:`source code howto <howto/source>`;
 to package custom modules, see the
 :ref:`module howto <modules-pkg>`.
+
+.. _source-alpine:
+
+============
+Alpine Linux
+============
+
+On Alpine, the PHP embed library is not in the default library path.
+:command:`./configure php` fails with ``no PHP embed SAPI found``. The
+file :file:`libphp.so` is in :file:`/usr/lib/php85`. Pass that directory
+with **--lib-path**. This recipe was tested on Alpine 3.24 x86_64 with
+PHP 8.5:
+
+.. code-block:: console
+
+   # apk add build-base openssl-dev pcre2-dev zlib-dev linux-headers php85-dev php85-embed
+
+.. code-block:: console
+
+   $ ./configure --openssl
+
+.. code-block:: console
+
+   $ ./configure php --module=php85 --config=php-config85 --lib-path=/usr/lib/php85
+
+.. code-block:: console
+
+   $ make -j1
+
+On a box with 1 GB of RAM, **make -j1** took about 2.5 minutes and used
+about 400 MiB at peak. A parallel build may run out of memory.
