@@ -24,6 +24,12 @@ Generating Certificates
    dropdown list and the server's OS in the :guilabel:`System` dropdown list
    at EFF's website.
 
+   On Alpine Linux, install Certbot from the Alpine packages:
+
+   .. code-block:: console
+
+      # apk add certbot
+
 #. Run the :program:`certbot` utility and follow its instructions to create the
    certificate bundle.  You'll be prompted to enter the domain name of the
    website and `validate domain ownership
@@ -162,14 +168,27 @@ Certbot enables renewing the certificates `manually
 <https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates>`_
 or `automatically
 <https://eff-certbot.readthedocs.io/en/stable/using.html#automated-renewals>`_.
-For manual renewal and rollover:
+Certbot has no installer plugin for Unit, but a deploy hook can upload each
+renewed bundle to Unit. For the hook and the cron setup, see :ref:`Automatic
+renewal with an ACME client <configuration-ssl-acme>`. That hook needs Unit
+1.37.0 or later. It uploads the renewed bundle under the name of the
+certificate lineage, for example **www.example.com**, unless
+**UNIT_CERT_NAME** is set. The listener must use the same name. If the
+listener uses another name, such as **certbot1** in the steps above,
+either upload the bundle and point the listener at the lineage name once,
+or run the hook from a wrapper that sets **UNIT_CERT_NAME=certbot1**.
+Otherwise renewal uploads a bundle that no listener uses, and the old
+certificate expires. For manual renewal and rollover, which works on all
+versions:
 
 #. Repeat the preceding steps to renew the certificates and upload the new
-   bundle under a different name:
+   bundle under a different name. Use the **webroot** method with the
+   ACME challenge route from above. Do not use **--standalone**: it binds
+   port 80, and Unit already listens there.
 
    .. code-block:: console
 
-      # certbot certonly --standalone
+      # certbot certonly --webroot -w :nxt_ph:`/var/www/www.example.com/ <Path where the file should be stored>` -d :nxt_ph:`www.example.com <Your domain name>`
 
             What would you like to do?
             - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -283,4 +302,46 @@ For manual renewal and rollover:
    that enable automatic certificate rollover in Unit.  However, you can set up
    Certbot's `hooks
    <https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates>`_
-   using the commands listed here to the same effect.
+   using the commands listed here to the same effect. The hook in
+   :ref:`configuration-ssl-acme` is the supported way to do this.
+
+.. _howto-certbot-ip:
+
+*************************
+IP Address Certificates
+*************************
+
+Let's Encrypt issues certificates for IP addresses only with the
+``shortlived`` profile. These certificates are valid for about 6 days
+(160 hours). Certbot 5.3.0 added the **--ip-address** option for the
+standalone and manual plugins, and Certbot 5.4.0 added it to the webroot
+plugin. Certbot 4.0.0 added **--preferred-profile**. The webroot command
+below needs Certbot 5.4.0 or later. We checked the options against
+Certbot 5.6.0.
+Use the webroot method with the ACME challenge route described above:
+
+.. code-block:: console
+
+   # certbot certonly --webroot -w :nxt_ph:`/var/www/www.example.com/ <Path where the file should be stored>` --ip-address :nxt_ph:`203.0.113.10 <Your public IP address>` --cert-name :nxt_ph:`myip <Name of the certificate lineage>` --preferred-profile shortlived
+
+The files are in :file:`/etc/letsencrypt/live/myip/`. Upload them to Unit
+as shown earlier.
+
+Because the certificates are short-lived, renew them often. Run
+:program:`certbot renew` at least once a day. This example cron line runs it
+every 6 hours:
+
+.. code-block:: none
+
+   17 */6 * * * certbot renew -q
+
+Use the :ref:`deploy hook <configuration-ssl-acme>` so that every renewal
+reaches Unit. Without the hook, the certificate in Unit expires in days.
+
+***************************
+Notes on Automatic Renewal
+***************************
+
+- In a non-interactive run, :program:`certbot renew` sleeps a random time
+  of up to 8 minutes before it starts. Add **--no-random-sleep-on-renew**
+  to disable the sleep.
