@@ -3509,10 +3509,14 @@ shared between all application languages:
         **php**,
         **python**,
         **ruby**,
-        or **wasm**
-        (WebAssembly).
+        **wasm**,
+        or **wasm-wasi-component**
+        (WebAssembly; see
+        :doc:`../webassembly`).
 
-        Except for **external** and **wasm**,
+        Except for **external**,
+        **wasm**,
+        and **wasm-wasi-component**,
         you can detail the runtime version:
         **"type": "python 3"**,
         **"type": "python 3.4"**,
@@ -5482,6 +5486,12 @@ to your app.
 ===========
 WebAssembly
 ===========
+
+For the current runtime behaviour
+(JIT vs AOT, Wasmtime pins, limitations),
+see :doc:`../webassembly`.
+Option tables for both application types
+follow below.
 
 .. tabs::
    :prefix: unit-wasm
