@@ -7,6 +7,7 @@
    installation
    controlapi
    configuration/index
+   webassembly
    scripting
    certificates
    statusapi
