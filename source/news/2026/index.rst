@@ -7,6 +7,20 @@ News archive for the year 2026.
 
 .. nxt_news_entry::
    :author: FreeUnit Team
+   :description: Three security fixes: Wasmtime 48.0.8, owner checks when
+                 unitc, setup-unit and unitctl find a running unitd, and
+                 re-encoding of a rewritten proxy target. Compression of
+                 responses of unknown length with bounded compressor state;
+                 stricter chunked and Connection header parsing; WebSocket,
+                 application queue and TLS shutdown fixes; PHP 8.7 support
+                 and Docker images for Python 3.15.
+   :email: team@freeunit.org
+   :title: FreeUnit 1.37.2 Released
+   :url: news/2026/unit-1.37.2-released
+   :date: 2026-11-09
+
+.. nxt_news_entry::
+   :author: FreeUnit Team
    :description: Optional PCRE2 regex JIT and USDT tracing probes;
                  HTTP, compression and application queue fixes;
                  Wasmtime 48.0.7; PHP image hardening and release checks.
