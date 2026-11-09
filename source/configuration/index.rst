@@ -6139,8 +6139,7 @@ The level range depends on the coding:
     * - **br**
       - 0 to 11
       - 11
-      - Unit uses at most level 5
-        for a response of unknown length *(since 1.37.2)*.
+      -
 
 Example:
 
@@ -6254,12 +6253,12 @@ Unit shrinks the window to the size of the body.
       - windowLog from 10 up to 21 (2 MiB window), shrunk to the body
 
     * - **br**
-      - 512 KiB window (19 bits), level at most 5
+      - 512 KiB window (19 bits), the configured level applies
       - 512 KiB window at most (19 bits), the length is a size hint,
         the configured level applies
 
 FreeUnit measured the state of one 8 MiB stream as about 54 KiB for gzip,
-1.7 MB for zstd, and 2.3 MB for Brotli.
+1.7 MB for zstd, and 6 MB for Brotli at the default level 11.
 The size grows with the number of open streams,
 so a server with many slow streamed responses needs more memory.
 These numbers come from the 1.37.2 release notes in the FreeUnit repository;
