@@ -7,6 +7,21 @@ News archive for the year 2026.
 
 .. nxt_news_entry::
    :author: FreeUnit Team
+   :description: Schedules: periodic internal requests to an application with
+                 no client and no sidecar process. WASI 0.3 components in the
+                 WebAssembly component module. The libunit 1.38 ABI with a
+                 protocol number and a frozen callbacks table, so external
+                 libunit applications must be rebuilt. Credential headers in
+                 the access log are written as REDACTED unless
+                 log_credentials opts in. Route regexes match in UTF-8 mode
+                 with PCRE2 10.48 or later.
+   :email: team@freeunit.org
+   :title: FreeUnit 1.38.0 Released
+   :url: news/2026/unit-1.38.0-released
+   :date: 2026-11-10
+
+.. nxt_news_entry::
+   :author: FreeUnit Team
    :description: Three security fixes: Wasmtime 48.0.8, owner checks when
                  unitc, setup-unit and unitctl find a running unitd, and
                  re-encoding of a rewritten proxy target. Compression of
