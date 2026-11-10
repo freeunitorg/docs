@@ -10,9 +10,12 @@ Installation
 ############
 
 .. warning::
-   **Official FreeUnit RPM/DEB packages are coming soon.**
-   As of April 2026, FreeUnit is distributed via Docker images,
-   source builds, and pre-built ``unitctl`` binaries from GitHub Releases.
+   **FreeUnit has no APT or YUM package repository yet.**
+   FreeUnit releases have **.deb** packages for
+   :ref:`Debian 13 (trixie) <installation-debian-13>` on amd64
+   as release assets.
+   Other install paths are Docker images, source builds,
+   and pre-built ``unitctl`` binaries from GitHub Releases.
    The ``packages.nginx.org/unit/*`` repositories described below
    belong to the archived NGINX Unit project and will not receive further
    updates — use them only to migrate off.
@@ -21,11 +24,12 @@ Installation
 
 You can install FreeUnit in four alternative ways:
 
-- Choose from our official :ref:`binary packages <installation-precomp-pkgs>`
-  for a few popular systems (**coming soon** — see the
-  :doc:`migration guide <migration>` for the current status
-  and :ref:`Docker <migration-docker>` / :ref:`Source <migration-source>`
-  install paths).
+- Install our official :ref:`binary packages <installation-precomp-pkgs>`.
+  FreeUnit publishes **.deb** packages
+  for :ref:`Debian 13 (trixie) <installation-debian-13>` on amd64.
+  On other systems, see the :doc:`migration guide <migration>`
+  for the :ref:`Docker <migration-docker>` and :ref:`Source <migration-source>`
+  install paths.
 
 - If your preferred OS or language version
   is missing from the official package list,
@@ -104,14 +108,15 @@ Official packages
 *****************
 
 .. warning::
-   **Official FreeUnit RPM/DEB packages are coming soon.**
-   The repositories, keys, and package names documented in this section
+   **FreeUnit has no RPM or DEB package repository yet.**
+   FreeUnit publishes **.deb** packages for
+   :ref:`Debian 13 (trixie) <installation-debian-13>` as release assets.
+   The other repositories, keys, and package names documented in this section
    (``packages.nginx.org/unit/*``, ``nginx-keyring.gpg``, ``unit``,
    ``unit-php``, …) refer to the **archived NGINX Unit** project and
-   are kept here for reference only. Until FreeUnit's native packages
-   land, install via :ref:`Docker <migration-docker>` or a
+   are kept here for reference only.
+   On other systems, install via :ref:`Docker <migration-docker>` or a
    :ref:`source build <migration-source>`.
-   Progress: https://github.com/freeunitorg/freeunit/milestone/2
 
 Historically, official precompiled Unit binary packages
 have been available for:
@@ -327,6 +332,114 @@ Debian
 
 .. tabs::
    :prefix: debian
+
+   .. tab:: 13
+
+      Supported architecture: x86-64.
+
+      FreeUnit has no apt repository yet.
+      The **.deb** packages for Debian 13 (trixie) are assets of a
+      `FreeUnit release <https://github.com/freeunitorg/freeunit/releases>`__
+      on GitHub.
+      Install the **freeunit** package and one language module.
+      The PHP embed SAPI allows only one PHP version in one Unit instance.
+
+      #. Install the tools that download and check the packages:
+
+         .. code-block:: console
+
+            # apt-get update
+
+         .. code-block:: console
+
+            # apt-get install -y --no-install-recommends ca-certificates curl
+
+      #. To install a PHP module, enable the deb.sury.org repository.
+         The PHP modules depend on **libphpX.Y-embed** from that repository.
+         Skip this step if you install only the Python module.
+
+         .. code-block:: console
+
+            # curl -fsSL https://packages.sury.org/php/apt.gpg  \
+                   -o /usr/share/keyrings/sury-php.gpg
+
+         Create the following file named
+         **/etc/apt/sources.list.d/sury-php.sources**:
+
+         .. code-block:: none
+
+            Types: deb
+            URIs: https://packages.sury.org/php/
+            Suites: trixie
+            Components: main
+            Signed-By: /usr/share/keyrings/sury-php.gpg
+
+         .. code-block:: console
+
+            # apt-get update
+
+      #. Download the packages and the **SHA256SUMS** file,
+         check the packages, and install them:
+
+         .. subs-code-block:: console
+
+            $ DEB=|version|-1~trixie    # Version as it appears in the SHA256SUMS file names
+            $ ASSET=|version|-1.trixie  # The same version in the asset URLs
+            $ MOD=:nxt_ph:`php8.4 <One of: php8.3, php8.4, php8.5, python3.13>`
+            $ BASE=https://github.com/freeunitorg/freeunit/releases/download/|version|
+
+         .. code-block:: console
+
+            $ curl -fLO "$BASE/SHA256SUMS"
+            $ curl -fL -o "freeunit_${DEB}_amd64.deb" "$BASE/freeunit_${ASSET}_amd64.deb"
+            $ curl -fL -o "freeunit-${MOD}_${DEB}_amd64.deb" "$BASE/freeunit-${MOD}_${ASSET}_amd64.deb"
+
+         .. code-block:: console
+
+            $ sha256sum -c --ignore-missing SHA256SUMS
+
+         .. code-block:: console
+
+            $ sudo apt-get install -y "./freeunit_${DEB}_amd64.deb" "./freeunit-${MOD}_${DEB}_amd64.deb"
+
+         GitHub replaces ``~`` with ``.`` in the name of a release asset.
+         The **curl** commands save each file under the name
+         that **SHA256SUMS** lists.
+         :command:`sha256sum -c --ignore-missing` checks only the files
+         that you downloaded.
+         It fails if a digest does not match.
+         **SHA256SUMS** proves integrity only.
+         It does not prove who made the files.
+
+      #. Start Unit:
+
+         .. code-block:: console
+
+            # systemctl enable --now freeunit
+
+         .. code-block:: console
+
+            # systemctl status freeunit
+
+      The release also has **-dbg** packages with debug symbols
+      and a **freeunit-dev** package.
+
+      Runtime details:
+
+      .. list-table::
+
+         * - Daemon binary and service
+           - **/usr/sbin/freeunitd**, **freeunit**
+
+         * - Control :ref:`socket <sec-socket>`
+           - **/var/run/control.freeunit.sock**
+
+         * - Log :ref:`file <troubleshooting-log>`
+           - **/var/log/freeunit.log**
+
+         * - Non-privileged :ref:`user and group <security-apps>`
+           - **freeunit**
+
 
    .. tab:: 12
 
@@ -1235,10 +1348,10 @@ Community Repositories
       The Alpine Linux
       `packages <https://pkgs.alpinelinux.org/packages?name=freeunit*>`_
       are named **freeunit**, not **unit**.
-      Alpine 3.24 ships FreeUnit 1.36.1.
-      Version 1.37.x is in Alpine edge only.
-      To get 1.37.x on a release branch, :ref:`build from source
-      <source-alpine>`.
+      Alpine 3.24 and Alpine edge ship FreeUnit 1.37.2
+      (checked on 10 November 2026).
+      Alpine 3.23 and 3.22 have no **freeunit** package.
+      On these releases, :ref:`build from source <source-alpine>`.
       To install FreeUnit's core executables:
 
       .. code-block:: console
@@ -1914,7 +2027,7 @@ Tag format: :samp:`{VERSION}-{VARIANT}` (pinned) or :samp:`latest-{VARIANT}` (ro
        Runs ``.war``/``.jsp`` applications.
        The ``java-27`` image is based on Ubuntu 26.04.
 
-   * - ``node-20`` ``node-22`` ``node-24`` ``node-26``
+   * - ``node-22`` ``node-24`` ``node-26``
      - Node.js (single-version images).
 
    * - ``perl-5.38`` ``perl-5.40`` ``perl-5.42`` ``perl-5.44``
@@ -1932,6 +2045,9 @@ Tag format: :samp:`{VERSION}-{VARIANT}` (pinned) or :samp:`latest-{VARIANT}` (ro
    * - ``python-3.14`` ``python-3.14-slim``
      - Python 3.14, full and slim variants.
 
+   * - ``python-3.15`` ``python-3.15-slim``
+     - Python 3.15, full and slim variants.
+
    * - ``ruby-3.3`` ``ruby-3.4`` ``ruby-4.0``
      - Ruby (single-version images).
 
@@ -1939,18 +2055,24 @@ Tag format: :samp:`{VERSION}-{VARIANT}` (pinned) or :samp:`latest-{VARIANT}` (ro
 
    Older images used variant names without the hyphen,
    such as ``php8.4`` or ``jsc21``.
-   Their ``latest-`` tags still exist, but FreeUnit no longer updates them.
+   Their ``latest-`` tags still exist.
+   Each release moves an old-style ``latest-`` tag, such as ``latest-php8.4``,
+   to the same image as its hyphenated tag, ``latest-php-8.4``,
+   while FreeUnit still builds that variant.
+   Old-style pinned tags, such as ``1.35.3-php8.4``,
+   exist only for releases up to 1.35.5.
+   A new variant gets no old-style name.
    Use the hyphenated names.
 
 To pull and run an image:
 
-.. code-block:: console
+.. subs-code-block:: console
 
-   $ docker pull ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php-8.4 or 1.37.0-python-3.13>`
+   $ docker pull ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php-8.4 or |version|-python-3.13>`
 
-.. code-block:: console
+.. subs-code-block:: console
 
-   $ docker run -d ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php-8.4 or 1.37.0-python-3.13>`
+   $ docker run -d ghcr.io/freeunitorg/freeunit::nxt_ph:`TAG <e.g. latest-php-8.4 or |version|-python-3.13>`
 
 .. nxt_details:: Building custom language-version images
    :hash: inst-lang-docker

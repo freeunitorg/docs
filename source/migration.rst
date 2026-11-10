@@ -25,15 +25,17 @@ This guide covers two audiences:
  ``config.json``, runtime paths, CLI flags, and the control API stay as-is.
 
 .. warning::
- **Official RPM/DEB packages for FreeUnit are coming soon.**
- As of April 2026, FreeUnit is distributed via:
+ **FreeUnit has no APT or YUM package repository yet.**
+ FreeUnit is distributed via:
 
+ - **.deb** packages for
+   :ref:`Debian 13 (trixie) <installation-debian-13>` on amd64,
+   as GitHub release assets
  - :ref:`Docker official images <migration-docker>`
  - :ref:`Source builds <migration-source>`
  - Pre-built ``unitctl`` binaries from GitHub Releases
 
- Native package manager support (APT/YUM) is in active development.
- Track progress at: https://github.com/freeunitorg/freeunit/milestone/2
+ For each release, see https://github.com/freeunitorg/freeunit/releases
 
 **For users** — pick one install path:
 
@@ -617,45 +619,10 @@ Steps
  Tag format: :samp:`{VERSION}-{VARIANT}` (pinned) or
  :samp:`latest-{VARIANT}` (rolling). There is **no bare** ``latest`` tag.
 
- .. list-table::
-  :header-rows: 1
-  :widths: 35 65
-
-  * - Variant
-    - Description
-
-  * - ``minimal``
-    - No language modules. Base for custom images.
-
-  * - ``wasm``
-    - WebAssembly Components (WASI 0.2) via Wasmtime.
-
-  * - ``go1.24`` ``go1.25`` ``go1.26``
-    - Go (single-version images).
-
-  * - ``jsc17`` ``jsc21``
-    - Java (Eclipse Temurin OpenJDK LTS). Runs ``.war``/``.jsp`` apps.
-
-  * - ``node20`` ``node22`` ``node24``
-    - Node.js (single-version images).
-
-  * - ``perl5.38`` ``perl5.40``
-    - Perl (single-version images).
-
-  * - ``php8.3`` ``php8.4`` ``php8.5``
-    - PHP (single-version images).
-
-  * - ``python3.12`` ``python3.12-slim``
-    - Python 3.12, full and slim.
-
-  * - ``python3.13`` ``python3.13-slim``
-    - Python 3.13, full and slim.
-
-  * - ``python3.14`` ``python3.14-slim``
-    - Python 3.14, full and slim.
-
-  * - ``ruby3.3`` ``ruby3.4``
-    - Ruby (single-version images).
+ For the list of variants, see the table in
+ :ref:`Docker Images <installation-docker>`.
+ Most variant names join the language and its version with a hyphen,
+ for example ``php-8.4``; the table lists all variants.
 
  Each tag is available for both ``amd64`` and ``arm64`` architectures
  via a multi-arch manifest.
@@ -668,15 +635,15 @@ Steps
 
  Reference the image in your ``Dockerfile`` or ``docker-compose.yml``:
 
- .. code-block:: docker
+ .. subs-code-block:: docker
   :caption: Example — pinning PHP 8.4
 
-  FROM ghcr.io/freeunitorg/freeunit:1.35.3-php8.4
+  FROM ghcr.io/freeunitorg/freeunit:|version|-php-8.4
 
  .. code-block:: docker
   :caption: Example — rolling latest Python 3.13
 
-  FROM ghcr.io/freeunitorg/freeunit:latest-python3.13
+  FROM ghcr.io/freeunitorg/freeunit:latest-python-3.13
 
 #. **Verify the image**
 
@@ -708,7 +675,7 @@ If you build custom images, use FreeUnit as your base:
 .. code-block:: docker
  :caption: Dockerfile
 
- FROM ghcr.io/freeunitorg/freeunit:minimal AS unit-base
+ FROM ghcr.io/freeunitorg/freeunit:latest-minimal AS unit-base
 
  # Your custom layers below
  COPY --from=unit-base /usr/lib/unit/modules /usr/lib/unit/modules
@@ -1052,16 +1019,21 @@ For older PHP versions, consider:
 **Q: Is there a migration script for FreeUnit?**
 
 A helper script is planned for a future release.
-Track progress on our roadmap:
-https://github.com/freeunitorg/freeunit/milestone/3
 
 Until then, follow the manual steps above — they take <5 minutes.
 
 **Q: Where is the GPG key for FreeUnit package verification?**
 
-Official RPM/DEB packages for FreeUnit are not yet available.
-When they are released, the public key will be published at:
+FreeUnit has no package repository yet,
+so there is no repository signing key.
+Check the :ref:`Debian 13 <installation-debian-13>` packages
+with the **SHA256SUMS** file of the release.
+**SHA256SUMS** proves integrity only.
+It does not prove who made the files.
+
+The FreeUnit Release Team public key is published at:
 http://freeunit.org/media/keys/6C68B7AA.asc
+The release assets have no signature files yet.
 
 For source builds, verify commits via GitHub signatures:
 https://github.com/freeunitorg/freeunit/commits/main
