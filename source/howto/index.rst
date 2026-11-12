@@ -22,6 +22,7 @@ experience with Unit.
    samples
    security
    tuning
+   php-opcache
    walkthrough
 
 - :doc:`docker`: Configure a standalone Unit or a Unit-run app in a Docker
@@ -47,6 +48,9 @@ experience with Unit.
 
 - :doc:`tuning`: Diagnose Linux resource limits, apply reversible production
   changes, and run reproducible performance benchmarks.
+
+- :doc:`php-opcache`: Run a fixed PHP script from OPcache without opening
+  the script file on every request.
 
 - :doc:`walkthrough`: Follow an end-to-end guide to application configuration
   in Unit.
