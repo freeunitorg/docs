@@ -51,9 +51,12 @@ Configuration
 *************
 
 Enable OPcache in **php.ini**.  OPcache is on by default when the
-extension is loaded, because **opcache.enable** defaults to 1.  Do not set
-**opcache.enable** in **options.admin**: PHP refuses it there, and Unit
-logs ``setting PHP option "opcache.enable: 1" failed``.
+extension is loaded, because **opcache.enable** defaults to 1.  The
+**options.admin** object cannot turn OPcache on; there, **opcache.enable**
+can only turn it off.  PHP 8.4 and earlier refuse a value of 1 in
+**options.admin** even when OPcache is already on, and Unit logs
+``setting PHP option "opcache.enable: 1" failed``.  So leave
+**opcache.enable** out of **options.admin**.
 
 Set the other settings in the application's **options.admin** object or in
 its **php.ini**:
@@ -110,10 +113,11 @@ A request that misses the cache after Unit decided to use OPcache also
 opens the file and answers as the open path does:
 
 - After an **opcache_invalidate()** of the script or a cache restart, the
-  request that misses opens and compiles the script; the next request
-  caches it.
-- An **auto_prepend_file** that invalidates the script, or changes the
-  OPcache settings, can also make the compile miss.
+  request that misses opens and compiles the script.  With the default
+  **opcache.file_update_protection**, the next request caches it; with a
+  value of 0, the request that misses caches it.
+- An **auto_prepend_file** that invalidates the script, or turns OPcache
+  off, can also make the compile miss.
 - A removed script answers 404; one that the worker cannot read answers
   403; a FIFO answers 404.  The status is sent and the body stays empty,
   as without OPcache.
