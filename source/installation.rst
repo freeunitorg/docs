@@ -1052,30 +1052,41 @@ macOS
 
    .. tab:: Homebrew
 
-      .. warning::
+      Unit on macOS comes from the official Homebrew tap
+      `freeunitorg/homebrew-unit <https://github.com/freeunitorg/homebrew-unit>`_.
+      The tap is a separate, community maintained repository.
+      It builds the released FreeUnit sources on its own CI,
+      tag `1.37.2` today, and follows the FreeUnit releases.
 
-         The Homebrew tap for FreeUnit is not yet published.
-         Install via :ref:`Docker <installation-docker>` or a
-         :ref:`source build <source>` until the tap lands.
-
-      Previously, Unit on macOS was installed via the
-      `nginx/homebrew-unit <https://github.com/nginx/homebrew-unit>`_ tap:
-
-      .. code-block:: console
-
-         $ brew install nginx/unit/unit  # archived; do not use
-
-      This deploys the core Unit binary
-      and the prerequisites for the
-      :ref:`Node.js <installation-nodejs-package>`
-      language module.
-
-      To install the Java, Perl, Python, and Ruby language modules
-      from Homebrew:
+      Tap the repository and install Unit:
 
       .. code-block:: console
 
-         $ brew install unit-java unit-perl unit-php unit-python unit-python3 unit-ruby
+         $ brew tap freeunitorg/unit https://github.com/freeunitorg/homebrew-unit
+         $ brew install freeunitorg/unit/unit
+
+      This deploys the core unitd binary with njs
+      and the released unitctl command-line tool.
+
+      To install the language modules from the tap:
+
+      .. code-block:: console
+
+         $ brew install freeunitorg/unit/unit-java \
+                       freeunitorg/unit/unit-perl \
+                       freeunitorg/unit/unit-php \
+                       freeunitorg/unit/unit-python3 \
+                       freeunitorg/unit/unit-ruby \
+                       freeunitorg/unit/unit-wasm
+
+      .. note::
+
+         The old ``unit-python`` formula is the Python 2 module.
+         Apple removed Python 2 from macOS,
+         so that formula cannot build on macOS that Homebrew supports.
+         Use ``unit-python3``.
+
+      Restart Unit after a module install:
 
       .. code-block:: console
 
