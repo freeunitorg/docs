@@ -7,6 +7,18 @@ News archive for the year 2026.
 
 .. nxt_news_entry::
    :author: FreeUnit Team
+   :description: Security fixes for the request path of the Java module,
+                 for WebSocket, timer and proxy buffers in the router, and
+                 for route rules with rewrite and pass; variable values in
+                 rewrite and pass are now used as data; PHP 8.6 images and
+                 the Homebrew tap.
+   :email: team@freeunit.org
+   :title: FreeUnit 1.37.3 Released
+   :url: news/2026/unit-1.37.3-released
+   :date: 2026-11-27
+
+.. nxt_news_entry::
+   :author: FreeUnit Team
    :description: Wasmtime 48.0.8 and safer unitd discovery in unitc,
                  setup-unit and unitctl; re-encoded rewritten proxy targets;
                  compression of unknown-length responses; stricter HTTP
