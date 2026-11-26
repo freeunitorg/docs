@@ -165,6 +165,15 @@ For example, you can escape slashes in entity names:
        }
    }
 
+Unit decodes only the literal text of **pass**.
+It uses the value of a
+:ref:`variable <configuration-variables>`
+and the result of a
+:doc:`template literal <../scripting>`
+as data *(since 1.37.3)*:
+a **%XX** in such a value is not decoded,
+so the value can't select a name that holds a slash.
+
 .. _configuration-listeners-ssl:
 
 =====================
@@ -915,6 +924,10 @@ define patterns to be compared to the request's properties:
        converted to lower case and normalized
        by removing the port number and the trailing period
        (if any).
+       A **Host** field with an empty host part
+       gets a 400 response *(since 1.37.3)*.
+       A request without a **Host** field
+       has an empty host.
      - No
 
    * - **method**
@@ -1358,6 +1371,15 @@ modify this behavior:
    vice versa, the encoded tilde
    (**%7E**)
    in the condition matches **~** in the request.
+
+   A client has to encode a space in the request target.
+   A request target that contains an unencoded space,
+   a control character such as HTAB,
+   or DEL
+   gets a 400 response *(since 1.37.3)*.
+   Percent-encoded spaces and control characters
+   in paths and arguments
+   remain supported.
 
 
 .. nxt_details:: String pattern examples
@@ -1846,6 +1868,10 @@ There's a number of built-in variables available:
        converted to lower case and normalized
        by removing the port number
        and the trailing period (if any).
+       A **Host** field with an empty host part
+       gets a 400 response *(since 1.37.3)*.
+       For a request without a **Host** field,
+       the value is empty.
 
    * - **method**
      - `Method <https://datatracker.ietf.org/doc/html/rfc7231#section-4>`__
@@ -1878,6 +1904,8 @@ There's a number of built-in variables available:
        normalized by resolving relative path references
        ("." and "..")
        and collapsing adjacent slashes.
+       The value does not hold a raw **#**
+       and the text after it *(since 1.37.3)*.
 
    * - **response_header_***
      - Variables that store
@@ -2074,6 +2102,26 @@ it is considered empty.
           ]
       }
 
+   .. warning::
+
+      A request without a **Host** field
+      has an empty **$host**,
+      so **/www/$host$uri** names the files below **/www/**.
+      Put a route step that refuses an empty host
+      before such a **share** or **chroot**:
+
+      .. code-block:: json
+
+         {
+             "match": {
+                 "host": ""
+             },
+
+             "action": {
+                 "return": 400
+             }
+         }
+
    Another use case is employing the URI
    to choose between applications:
 
@@ -2239,6 +2287,35 @@ and returns it to routing:
    Avoid infinite loops
    when you  **pass** requests
    back to **routes**.
+
+Unit uses the value of a variable other than **$request_uri**
+in a **rewrite** template as data *(since 1.37.3)*.
+The same applies to the result of a
+:doc:`template literal <../scripting>`.
+Unit decodes the literal text of the template
+and **$request_uri** as before.
+It still resolves "." and ".." segments.
+For the value of any other variable:
+
+- A **%XX** in a value is not decoded.
+  To decode text that is encoded on purpose
+  in a template literal,
+  call **decodeURIComponent()**.
+
+- A **?** or **#** in a value
+  does not end the path.
+  A **proxy** upstream gets these bytes
+  as **%3F** and **%23**,
+  so a **rewrite** can't give the upstream a query of its own.
+
+- A NUL byte in a value gives a 500 response.
+
+The result of a **rewrite** has to start with **/**.
+An empty result,
+or a result that does not start with **/**,
+gives a 500 response *(since 1.37.3)*.
+A template that starts with a literal **/**
+always meets this rule.
 
 This action
 normalizes the request URI

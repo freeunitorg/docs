@@ -1056,7 +1056,7 @@ macOS
       `freeunitorg/homebrew-unit <https://github.com/freeunitorg/homebrew-unit>`_.
       The tap is a separate, community maintained repository.
       It builds the released FreeUnit sources on its own CI,
-      tag `1.37.2` today, and follows the FreeUnit releases.
+      version `1.37.3` today, and follows the FreeUnit releases.
 
       Tap the repository and install Unit:
 
@@ -2044,8 +2044,12 @@ Tag format: :samp:`{VERSION}-{VARIANT}` (pinned) or :samp:`latest-{VARIANT}` (ro
    * - ``perl-5.38`` ``perl-5.40`` ``perl-5.42`` ``perl-5.44``
      - Perl (single-version images).
 
-   * - ``php-8.3`` ``php-8.4`` ``php-8.5``
-     - PHP (single-version images).
+   * - ``php-8.3`` ``php-8.4`` ``php-8.5`` ``php-8.6``
+     - PHP (single-version images),
+       with the non-thread-safe build (NTS).
+
+   * - ``php-8.6-zts``
+     - PHP 8.6 with the thread-safe build (ZTS).
 
    * - ``python-3.12`` ``python-3.12-slim``
      - Python 3.12, full and slim variants.
