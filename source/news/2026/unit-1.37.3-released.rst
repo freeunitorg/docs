@@ -359,10 +359,13 @@ PHP
 
 - **Docker images for PHP 8.6.** ``php-8.6`` has the non-thread-safe build
   (NTS), like the images of PHP 8.3 to 8.5. ``php-8.6-zts`` has the
-  thread-safe build (ZTS). The official PHP images are ZTS only from PHP 8.6,
-  so the NTS base is built from the official recipe without the ZTS options
-  and published as ``ghcr.io/freeunitorg/php-nts``. The image check and the
-  tests fail when an image or a test leg has the other build. See
+  thread-safe build (ZTS). The official ``cli`` image of PHP 8.6 is ZTS, and
+  the official ``nts`` image has no embed SAPI, which the PHP module needs. So
+  the NTS base is built from the official ``cli`` recipe without the ZTS
+  options and published as ``ghcr.io/freeunitorg/php-nts``. Like the official
+  PHP 8.6 images, both images have no ``pecl`` command and no ``mbstring``
+  extension. The image check and the tests fail when an image or a test leg
+  has the other build. See
   :ref:`installation-docker` for the list of image variants.
 - With a thread-safe (ZTS) PHP, the working directory of a script followed a
   replaced symlink only after ``realpath_cache_ttl`` seconds, 120 by default.
